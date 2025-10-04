@@ -1,0 +1,39 @@
+# Python artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+venv/
+env/
+.venv/
+ENV/
+
+# Secrets & sensitive data
+.env
+*.env
+config/secrets.*
+credentials.*
+cache/
+*.log
+logs/
+
+# Local development
+/tmp/fake-efs/
+notes
+
+# IDE/OS
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+
+# Keep: requirements.txt, setup/, templates/, *.json manifests, documentation
