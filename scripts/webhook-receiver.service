@@ -1,0 +1,19 @@
+[Unit]
+Description=Collagen Webhook Receiver
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu
+ExecStart=/usr/bin/python3 /home/ubuntu/webhook-receiver.py --port 8080
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=webhook-receiver
+
+[Install]
+WantedBy=multi-user.target

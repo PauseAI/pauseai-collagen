@@ -19,6 +19,7 @@ ENV/
 # Secrets & sensitive data
 .env
 *.env
+.aws-config
 config/secrets.*
 credentials.*
 cache/
