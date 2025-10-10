@@ -27,13 +27,24 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] Webhook receiver deployed and tested
 - [x] Cloudinary webhook behavior empirically tested
 - [x] **Architecture decision: Use webhook-based sync**
+- [x] EC2 webhook processor implemented with dual-size storage
+- [x] Webhook signature validation (SHA-1 + timestamp)
+- [x] Campaign-specific logging to EFS
+- [x] Format normalization (f_jpg for all inputs)
+- [x] Email sanitization for test campaigns
+- [x] Grid optimization algorithm for 4K collages
+- [x] Redrive mechanism for backfills
+- [x] Performance validation (35-49s collage generation)
 
-### Next Steps
-- [ ] Implement EC2-based webhook processor with dev/prod filtering (Phase 1)
-- [ ] Test complete dev workflow (sync → collage → email)
-- [ ] Migrate to API Gateway + SQS + Lambda (Phase 2)
-- [ ] Dev backfill (test_prototype images) (Phase 3)
-- [ ] Enable prod processing + prod backfill (142 sayno images) (Phase 4)
+### Next Steps (Revised Plan)
+- [ ] Migrate to API Gateway + SQS architecture (Phase 2A)
+- [ ] Enable sayno campaign + backfill 229 images (Phase 2A)
+- [ ] Collage generation web UI with preview (Phase 2B)
+- [ ] Email notification system with dry-run mode (Phase 3)
+- [ ] Allowlist testing with pauseai.info addresses (Phase 3)
+- [ ] Production rollout: phased (test group → full users) (Phase 3)
+- [ ] AWS Backup for EFS (Phase 3)
+- [ ] Monitoring and handoff (MVP)
 
 ## Tech Stack
 
@@ -84,12 +95,19 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - notification_type ("moderation")
 - Does NOT include: email metadata
 
-**Processing approach:**
-1. Webhook arrives with public_id
-2. Fetch full metadata via API: `cloudinary.api.resource(public_id)` → includes `context.custom.email`
-3. Download image from secure_url
-4. Embed email in EXIF using exiftool
-5. Save to EFS (`/mnt/efs/{dev|prod}/approved/{public_id_sanitized}.jpg`)
+**Processing approach (Phase 1 - implemented):**
+1. Webhook arrives with public_id, secure_url
+2. **Parallel**: Fetch metadata via API (asset_folder, email) + download image to /tmp as JPG
+3. Filter by asset_folder (only test_prototype in Phase 1)
+4. Sanitize email for test campaigns (→ collagen-test+...@antb.me)
+5. Embed email in EXIF UserComment
+6. Save full-size JPEG to `approved/`
+7. Generate 300×400 PNG thumbnail to `thumbnails/`
+8. Log to campaign-specific `processor.log`
+
+**Rejection handling:**
+- Delete both approved JPEG and thumbnail PNG
+- Pending webhooks ignored (limbo state, not rejection)
 
 ### Why Webhooks Won
 
@@ -97,38 +115,72 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - **Zero polling overhead**: No API calls when nothing changes
 - **Scalable**: 142 or 5000 photos, same architecture
 - **Backfill viable**: API can trigger webhooks via status toggle
-- **Production-grade**: SQS+Lambda provides retries, DLQ, at-least-once delivery
+- **Production-grade**: SQS provides retries, DLQ, at-least-once delivery (Cloudinary: 3 retries over 9 min)
 - **Simpler logic**: No state diffing, filesystem is append-only (delete on reject)
 
-## Filesystem Structure
+### Sync Architecture Evolution
+
+**Phase 1: EC2 Direct (Dev Testing)**
+```
+Cloudinary → EC2 Flask app → EFS
+```
+- Fast iteration, simple debugging
+- Filters: only process `asset_folder=test_prototype`
+- Risk: Lost webhooks if EC2 down during Cloudinary's 9-min retry window
+
+**Phase 2: API Gateway + SQS (Production)**
+```
+Cloudinary → API Gateway → SQS → EC2 Processor → EFS
+              ↓ VTL mapping      ↓
+         Sets campaign attr   14-day retention
+```
+- API Gateway returns 200 immediately (Cloudinary considers delivered)
+- VTL mapping extracts `asset_folder` as SQS message attribute `campaign`
+- Enables per-campaign CloudWatch alarms (dev vs prod separation)
+- EC2 processor polls SQS, processes messages, writes to EFS
+- DLQ for failed processing
+- No Lambda needed (EC2 already has EFS mounted)
+
+## Filesystem Structure (Campaign-Agnostic)
 
 ```
 /mnt/efs/
-├── dev/
-│   ├── approved/         # Synced photos with EXIF metadata
-│   │   ├── test_prototype_abc123.jpg
-│   │   └── test_prototype_def456.jpg
-│   ├── collages/         # Generated collages + manifests
-│   │   ├── preview.jpg   # Working preview (not published)
-│   │   ├── v1.jpg        # Published collages
-│   │   ├── v1.json       # Manifest: photos included, emails sent
-│   │   └── v2.jpg
+├── test_prototype/       # Dev campaign (asset_folder from API)
+│   ├── approved/         # Archive: 1500×2000 JPEG with EXIF metadata (~200KB each)
+│   │   ├── selfie_abc123.jpg
+│   │   └── selfie_def456.jpg
+│   ├── thumbnails/       # Collage-ready: 300×400 PNG (~175KB each)
+│   │   ├── selfie_abc123.png  # Generated from approved JPEG
+│   │   └── selfie_def456.png  # Email preserved in EXIF
+│   ├── collages/         # Generated collages + manifests (Phase 2)
+│   │   ├── preview.png   # Working preview (not published)
+│   │   ├── v1_master.png # 4K PNG master with transparency
+│   │   ├── v1_1920.jpg   # JPEG derivative (1920px)
+│   │   ├── v1_1024.jpg   # JPEG derivative (1024px)
+│   │   └── v1.json       # Manifest: photos included, emails sent
 │   └── logs/
-│       ├── webhooks/     # Cloudinary webhook logs
-│       │   └── 20251005/
-│       │       ├── 144235.upload.test_prototype_abc.json
-│       │       ├── 150655.approve.sayno_selfie_xyz.json
-│       │       └── 151707.reject.sayno_selfie_123.json
-│       ├── sync.log      # Processor activity log
-│       └── email-v1.log  # Email send logs per collage
-└── prod/
+│       ├── processor.log # Main events: SYNCED/DELETED/ERROR
+│       ├── webhooks/     # Cloudinary webhook logs (Phase 2)
+│       │   └── YYYYMMDD/
+│       │       └── HHMMSS.{status}.{public_id}.json
+│       └── email-v1.log  # Email send logs per collage (Phase 3)
+├── sayno/                # Production campaign (Phase 2)
+│   └── [same structure]
+└── future_campaign/      # Future campaigns
     └── [same structure]
 ```
 
-**Log naming convention:** `YYYYMMDD/HHMMSS.{status}.{public_id_sanitized}.json`
-- Date-based directories for organization
-- Status in filename (approve/reject/pending/upload)
-- Public ID for traceability
+**Dual-size strategy:**
+- Full JPEG (1500×2000): Archive quality, EXIF metadata source
+- PNG thumbnail (300×400): Pre-generated for fast collage assembly
+- Path convention: `thumb_for_approved(approved_path)` enforces consistency
+
+**Processor routing:** `asset_folder` from API → `/mnt/efs/{asset_folder}/`
+
+**Why dual storage:**
+- Collage from full-size: 163s for 999 images (too slow)
+- Collage from thumbnails: 49s for 999 images (fits HTTP timeout)
+- Webhook overhead: +0.2s per photo (acceptable)
 
 ## Collage Manifest Format
 
