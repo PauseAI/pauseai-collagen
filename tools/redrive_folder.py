@@ -26,13 +26,14 @@ cloudinary.config(
 )
 
 
-def redrive_folder(asset_folder: str, delay: float = 0.5):
+def redrive_folder(asset_folder: str, delay: float = 0.5, limit: int = None):
     """
     Redrive all images in an asset_folder by toggling moderation status.
 
     Args:
         asset_folder: Folder name (e.g., 'test_prototype', 'sayno')
         delay: Seconds to wait between API calls (rate limiting)
+        limit: Max number of images to process (None = all)
     """
     print(f"Redriving asset_folder: {asset_folder}")
     print("=" * 80)
@@ -43,8 +44,12 @@ def redrive_folder(asset_folder: str, delay: float = 0.5):
         .max_results(500) \
         .execute()
 
-    images = search_result.get('resources', [])
-    print(f"Found {len(images)} images in {asset_folder}")
+    all_images = search_result.get('resources', [])
+    images = all_images[:limit] if limit else all_images
+
+    print(f"Found {len(all_images)} images in {asset_folder}")
+    if limit:
+        print(f"Processing first {len(images)} images (--limit {limit})")
 
     if not images:
         print("No images to redrive")
@@ -87,10 +92,12 @@ def redrive_folder(asset_folder: str, delay: float = 0.5):
 
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Usage: redrive_folder.py <asset_folder>")
-        print("Example: redrive_folder.py test_prototype")
-        sys.exit(1)
+    import argparse
 
-    folder = sys.argv[1]
-    redrive_folder(folder)
+    parser = argparse.ArgumentParser(description='Redrive images in an asset_folder to re-trigger webhooks')
+    parser.add_argument('asset_folder', help='Folder name (e.g., test_prototype, sayno)')
+    parser.add_argument('--limit', type=int, help='Process only first N images (for testing)')
+    parser.add_argument('--delay', type=float, default=0.5, help='Delay between API calls (default: 0.5s)')
+
+    args = parser.parse_args()
+    redrive_folder(args.asset_folder, delay=args.delay, limit=args.limit)
