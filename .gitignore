@@ -38,3 +38,5 @@ notes
 .DS_Store
 
 # Keep: requirements.txt, setup/, templates/, *.json manifests, documentation
+*.zip
+*.zip

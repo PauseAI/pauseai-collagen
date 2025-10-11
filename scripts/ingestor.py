@@ -37,7 +37,7 @@ cloudinary.config(
 
 # Configuration
 EFS_BASE = Path('/mnt/efs')
-DEV_CAMPAIGN = 'test_prototype'  # Phase 1: Only process dev campaign
+ALLOWED_CAMPAIGNS = ['test_prototype', 'sayno']  # Phase 2A: Process dev + prod campaigns
 
 logger = logging.getLogger(__name__)
 
@@ -75,30 +75,30 @@ def sanitize_test_email(email: str) -> str:
     return f'collagen-test+{safe_token}@antb.me'
 
 
-def thumb_for_approved(approved_path: Path) -> Path:
+def tile_for_source(source_path: Path) -> Path:
     """
-    Convert approved/ path to corresponding thumbnails/ path.
+    Convert sources/ path to corresponding tiles/ path.
     Works for both files and directories.
 
     Convention:
-        - approved/photo_abc.jpg → thumbnails/photo_abc.png (file)
-        - campaign/approved/ → campaign/thumbnails/ (directory)
+        - sources/photo_abc.jpg → tiles/photo_abc.png (file)
+        - campaign/sources/ → campaign/tiles/ (directory)
 
     Args:
-        approved_path: Path in approved/ directory (file or directory)
+        source_path: Path in sources/ directory (file or directory)
 
     Returns:
-        Corresponding path in thumbnails/
+        Corresponding path in tiles/
     """
-    # Replace 'approved' with 'thumbnails' in path
-    thumb_str = str(approved_path).replace('/approved', '/thumbnails')
-    thumb_path = Path(thumb_str)
+    # Replace 'sources' with 'tiles' in path
+    tile_str = str(source_path).replace('/sources', '/tiles')
+    tile_path = Path(tile_str)
 
     # If it's a file (or looks like one), change extension to .png
-    if approved_path.suffix or (not approved_path.exists() and '.' in approved_path.name):
-        thumb_path = thumb_path.with_suffix('.png')
+    if source_path.suffix or (not source_path.exists() and '.' in source_path.name):
+        tile_path = tile_path.with_suffix('.png')
 
-    return thumb_path
+    return tile_path
 
 
 def fetch_resource_info(public_id: str) -> Tuple[Optional[str], Optional[str]]:
@@ -190,49 +190,49 @@ def embed_exif_email(image_path: str, email: str) -> bool:
         return False
 
 
-def generate_thumbnail(approved_path: Path) -> bool:
+def generate_tile(source_path: Path) -> bool:
     """
-    Generate 300×400 PNG thumbnail from approved JPEG.
+    Generate 300×400 PNG tile from source JPEG.
 
-    Uses convention: approved/photo.jpg → thumbnails/photo.png (via thumb_for_approved)
+    Uses convention: sources/photo.jpg → tiles/photo.png (via tile_for_source)
 
     Args:
-        approved_path: Path to approved JPEG image
+        source_path: Path to source JPEG image
 
     Returns:
         True if successful, False otherwise
     """
     try:
-        thumbnail_path = thumb_for_approved(approved_path)
-        thumbnail_path.parent.mkdir(parents=True, exist_ok=True)
+        tile_path = tile_for_source(source_path)
+        tile_path.parent.mkdir(parents=True, exist_ok=True)
 
         result = subprocess.run(
-            ['convert', str(approved_path), '-resize', '300x400!', str(thumbnail_path)],
+            ['convert', str(source_path), '-resize', '300x400!', str(tile_path)],
             capture_output=True,
             text=True,
             timeout=10
         )
 
         if result.returncode == 0:
-            logger.info(f"Generated thumbnail: {thumbnail_path}")
+            logger.info(f"Generated tile: {tile_path}")
             return True
         else:
-            logger.error(f"Thumbnail generation failed: {result.stderr}")
+            logger.error(f"Tile generation failed: {result.stderr}")
             return False
 
     except FileNotFoundError:
         logger.error("convert (ImageMagick) not found")
         return False
     except Exception as e:
-        logger.error(f"Failed to generate thumbnail: {e}")
+        logger.error(f"Failed to generate tile: {e}")
         return False
 
 
 def process_webhook(webhook_data: Dict[str, Any]) -> None:
     """
-    Main webhook processor - orchestrates image sync based on moderation status.
+    Main webhook ingestor - orchestrates image sync based on moderation status.
 
-    Phase 1 filtering: Only process test_prototype campaign
+    Phase 2A filtering: Process test_prototype and sayno campaigns
 
     Format handling: Always downloads as JPG via Cloudinary's f_jpg transformation,
     regardless of source format (PNG, HEIC, WEBP, etc.). This ensures:
@@ -245,11 +245,12 @@ def process_webhook(webhook_data: Dict[str, Any]) -> None:
         2. Check asset_folder matches campaign filter
         3. Embed EXIF in temp JPG file
         4. Move temp file to final EFS location (always .jpg extension)
-        5. Return success (or fail and cleanup temp)
+        5. Generate tile (300×400 PNG for collage rendering)
+        6. Return success (or fail and cleanup temp)
 
     Logic:
-        - approved: Sync image with EXIF to approved/
-        - rejected/pending: Delete from approved/ if exists
+        - approved: Ingest image with EXIF to sources/, generate tile
+        - rejected/pending: Delete from sources/ and tiles/ if exists
     """
     public_id = webhook_data.get('public_id')
     moderation_status = webhook_data.get('moderation_status')
@@ -284,9 +285,9 @@ def process_webhook(webhook_data: Dict[str, Any]) -> None:
                     os.unlink(temp_path)
                 return
 
-            # Phase 1: Filter for dev campaign only
-            if asset_folder != DEV_CAMPAIGN:
-                logger.debug(f"Skipping {public_id} - not in {DEV_CAMPAIGN} campaign (asset_folder: {asset_folder})")
+            # Phase 2A: Filter for allowed campaigns
+            if asset_folder not in ALLOWED_CAMPAIGNS:
+                logger.debug(f"Skipping {public_id} - not in allowed campaigns (asset_folder: {asset_folder})")
                 if temp_path:
                     os.unlink(temp_path)
                 return
@@ -314,27 +315,27 @@ def process_webhook(webhook_data: Dict[str, Any]) -> None:
             else:
                 logger.warning(f"No email found for {public_id} - saving without EXIF")
 
-            # Setup directories (creates both approved/ and thumbnails/)
-            approved_dir = EFS_BASE / asset_folder / 'approved'
-            approved_dir.mkdir(parents=True, exist_ok=True)
-            thumb_for_approved(approved_dir).mkdir(parents=True, exist_ok=True)
+            # Setup directories (creates both sources/ and tiles/)
+            sources_dir = EFS_BASE / asset_folder / 'sources'
+            sources_dir.mkdir(parents=True, exist_ok=True)
+            tile_for_source(sources_dir).mkdir(parents=True, exist_ok=True)
 
-            # Move full-size to approved/
+            # Move full-size to sources/
             safe_filename = sanitize_public_id(public_id)
-            final_path = approved_dir / f"{safe_filename}.jpg"
+            final_path = sources_dir / f"{safe_filename}.jpg"
 
             shutil.move(temp_path, final_path)
             temp_path = None  # Moved successfully
 
-            # Generate 300×400 PNG thumbnail (uses convention to find path)
-            if not generate_thumbnail(final_path):
-                logger.error(f"Failed to generate thumbnail for {public_id} - aborting")
-                final_path.unlink()  # Remove approved image
+            # Generate 300×400 PNG tile (uses convention to find path)
+            if not generate_tile(final_path):
+                logger.error(f"Failed to generate tile for {public_id} - aborting")
+                final_path.unlink()  # Remove source image
                 return
 
-            logger.info(f"✓ Synced approved image: {public_id} -> {final_path}")
-            logger.info(f"  + thumbnail: {thumb_for_approved(final_path)}")
-            campaign_log.info(f"SYNCED: {public_id} (email: {email_for_exif or 'none'})")
+            logger.info(f"✓ Ingested tile: {public_id} -> {final_path}")
+            logger.info(f"  + tile: {tile_for_source(final_path)}")
+            campaign_log.info(f"INGESTED: {public_id} (email: {email_for_exif or 'none'})")
 
         except Exception as e:
             logger.error(f"Error processing approved image {public_id}: {e}", exc_info=True)
@@ -356,28 +357,28 @@ def process_webhook(webhook_data: Dict[str, Any]) -> None:
         # Create campaign-specific logger
         campaign_log = CampaignLogger(asset_folder, EFS_BASE)
 
-        # Remove both approved image and thumbnail (using convention)
-        approved_dir = EFS_BASE / asset_folder / 'approved'
+        # Remove both source image and tile (using convention)
+        sources_dir = EFS_BASE / asset_folder / 'sources'
         safe_filename = sanitize_public_id(public_id)
-        image_path = approved_dir / f"{safe_filename}.jpg"
-        thumbnail_path = thumb_for_approved(image_path)
+        source_path = sources_dir / f"{safe_filename}.jpg"
+        tile_path = tile_for_source(source_path)
 
         deleted_any = False
 
-        if image_path.exists():
-            image_path.unlink()
-            logger.info(f"✓ Deleted {moderation_status} image: {image_path}")
+        if source_path.exists():
+            source_path.unlink()
+            logger.info(f"✓ Deleted {moderation_status} source: {source_path}")
             deleted_any = True
 
-        if thumbnail_path.exists():
-            thumbnail_path.unlink()
-            logger.info(f"✓ Deleted {moderation_status} thumbnail: {thumbnail_path}")
+        if tile_path.exists():
+            tile_path.unlink()
+            logger.info(f"✓ Deleted {moderation_status} tile: {tile_path}")
             deleted_any = True
 
         if deleted_any:
             campaign_log.info(f"DELETED: {public_id} (status: {moderation_status})")
         else:
-            logger.debug(f"Image not in approved dir (already removed or never approved): {public_id}")
+            logger.debug(f"Tile not in sources dir (already removed or never ingested): {public_id}")
 
     elif moderation_status == 'pending':
         # Pending is a limbo state (not yet moderated) - do nothing

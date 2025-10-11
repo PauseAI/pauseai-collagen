@@ -1,0 +1,58 @@
+[
+  {
+    "public_id": "test_prototype/zsyukvaetvhrb3xxjqrn",
+    "asset_folder": "test_prototype",
+    "folder": null,
+    "moderation_status": "none",
+    "email": null,
+    "tags": [
+      "selfie",
+      "test_prototype"
+    ],
+    "context": {
+      "custom": {
+        "uploaded_at": "2025-10-05T13:43:23.406Z"
+      }
+    },
+    "created_at": "2025-10-05T13:44:33+00:00",
+    "uploaded_at": "2025-10-05T13:44:33+00:00"
+  },
+  {
+    "public_id": "test_prototype/bs8psp5fvlylptdqmxmh",
+    "asset_folder": "test_prototype",
+    "folder": null,
+    "moderation_status": "approved",
+    "email": "test@antb.me",
+    "tags": [
+      "has_email",
+      "selfie",
+      "test_prototype"
+    ],
+    "context": {
+      "custom": {
+        "email": "test@antb.me",
+        "uploaded_at": "2025-09-12T00:52:52.623Z"
+      }
+    },
+    "created_at": "2025-09-12T00:53:09+00:00",
+    "uploaded_at": "2025-09-12T00:53:09+00:00"
+  },
+  {
+    "public_id": "test_prototype/vuletqox5qnovehk2ml9",
+    "asset_folder": "test_prototype",
+    "folder": null,
+    "moderation_status": "approved",
+    "email": null,
+    "tags": [
+      "selfie",
+      "test_prototype"
+    ],
+    "context": {
+      "custom": {
+        "uploaded_at": "2025-09-10T13:03:37.187Z"
+      }
+    },
+    "created_at": "2025-09-10T13:03:53+00:00",
+    "uploaded_at": "2025-09-10T13:03:53+00:00"
+  }
+]

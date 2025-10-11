@@ -1,0 +1,31 @@
+[Unit]
+Description=Collagen SQS Webhook Ingestor
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/collagen
+Environment="PATH=/home/ubuntu/collagen/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PYTHONUNBUFFERED=1"
+EnvironmentFile=/home/ubuntu/collagen/.env
+
+# SQS Queue URL will be loaded from .env as SQS_QUEUE_URL
+ExecStart=/home/ubuntu/collagen/venv/bin/python3 /home/ubuntu/collagen/scripts/sqs_ingestor.py
+
+# Restart policy
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=collagen-ingestor
+
+# Security
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

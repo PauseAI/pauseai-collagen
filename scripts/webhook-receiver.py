@@ -20,9 +20,9 @@ from pathlib import Path
 import argparse
 from dotenv import load_dotenv
 
-# Add parent directory to path to import processor
+# Add parent directory to path to import ingestor
 sys.path.insert(0, str(Path(__file__).parent.parent))
-import processor
+import ingestor
 
 # Load environment variables
 load_dotenv()
@@ -141,13 +141,13 @@ def webhook_handler(webhook_type):
         asset_folder = body.get('asset_folder', 'unknown')
 
         # Log webhook to campaign-specific directory
-        processor.log_webhook_to_file(body, asset_folder)
+        ingestor.log_webhook_to_file(body, asset_folder)
 
-        # Process image sync
+        # Ingest image
         try:
-            processor.process_webhook(body)
+            ingestor.process_webhook(body)
         except Exception as e:
-            app.logger.error(f"Processor failed: {e}", exc_info=True)
+            app.logger.error(f"Ingestor failed: {e}", exc_info=True)
             # Return 200 anyway - we don't want Cloudinary to retry on our bugs
 
     # Return success response

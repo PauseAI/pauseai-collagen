@@ -53,7 +53,7 @@ fi
 
 # 4. Create directory structure
 echo "[4/4] Creating directory structure..."
-sudo mkdir -p /mnt/efs/{dev,prod}/{approved,collages,logs}
+sudo mkdir -p /mnt/efs/{dev,prod}/{sources,tiles,collages,logs}
 sudo chown -R ubuntu:ubuntu /mnt/efs
 
 echo ""

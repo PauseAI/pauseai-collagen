@@ -3,7 +3,7 @@
 
 set -e
 
-APPROVED_DIR="/mnt/efs/test_prototype/approved"
+APPROVED_DIR="/mnt/efs/test_prototype/sources"
 COPY_DIR="/tmp/test_photos_1000"
 
 # Count real photos
@@ -23,7 +23,7 @@ echo "Creating 1000 copies..."
 
 counter=1
 while [ $counter -le 1000 ]; do
-    # Pick a random photo from approved dir
+    # Pick a random photo from sources dir
     photo=$(ls -1 $APPROVED_DIR/*.jpg | shuf -n 1)
     cp "$photo" "$COPY_DIR/photo_$(printf '%04d' $counter).jpg"
 

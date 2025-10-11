@@ -228,7 +228,7 @@ echo ""
 echo "Next steps:"
 echo "1. SSH to the instance"
 echo "2. Mount EFS"
-echo "3. Create directory structure: sudo mkdir -p /mnt/efs/{dev,prod}/{approved,collages,logs}"
+echo "3. Create directory structure: sudo mkdir -p /mnt/efs/{dev,prod}/{sources,tiles,collages,logs}"
 echo "4. Set permissions: sudo chown -R ubuntu:ubuntu /mnt/efs"
 echo ""
 

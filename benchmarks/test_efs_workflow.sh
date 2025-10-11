@@ -36,11 +36,11 @@ cached_kb=$(grep "^Cached:" /proc/meminfo | awk '{print $2}')
 echo "  Current cache: $((cached_kb / 1024))MB"
 
 echo
-echo "Phase 2: Reading from EFS for thumbnail generation"
+echo "Phase 2: Reading from EFS for tile generation"
 echo "  (Should hit cache for recently written files)"
 echo
 
-# Clear /tmp thumbnails
+# Clear /tmp tiles
 rm -f /tmp/thumb_*.png
 
 time_start=$(date +%s.%N)
@@ -57,7 +57,7 @@ done
 
 time_thumb_efs=$(echo "$(date +%s.%N) - $time_start" | bc)
 
-echo "✓ Generated 999 thumbnails from EFS: ${time_thumb_efs}s"
+echo "✓ Generated 999 tiles from EFS: ${time_thumb_efs}s"
 
 # Compare to local disk baseline
 echo
@@ -81,7 +81,7 @@ done
 
 time_thumb_local=$(echo "$(date +%s.%N) - $time_start" | bc)
 
-echo "✓ Generated 999 thumbnails from /tmp: ${time_thumb_local}s"
+echo "✓ Generated 999 tiles from /tmp: ${time_thumb_local}s"
 
 # Cleanup
 rm -rf "$EFS_TEST" /tmp/thumb_*.png

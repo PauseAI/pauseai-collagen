@@ -13,7 +13,7 @@ echo "============================================================"
 echo "PNG Collage Benchmark with Real Photos"
 echo "============================================================"
 
-# TEST 1: 221 images (17×13 grid, 237×316 thumbnails)
+# TEST 1: 221 images (17×13 grid, 237×316 tiles)
 echo
 echo "=========================================="
 echo "TEST 1: 221 images (17×13 grid, 237×316 cells)"
@@ -21,7 +21,7 @@ echo "=========================================="
 
 mkdir -p test_221/thumbs
 
-echo "Step 1: Creating 221 PNG thumbnails (237×316)..."
+echo "Step 1: Creating 221 PNG tiles (237×316)..."
 time_start=$(date +%s.%N)
 
 for i in $(seq 1 221); do
@@ -32,7 +32,7 @@ done
 
 time_thumb_221=$(echo "$(date +%s.%N) - $time_start" | bc)
 thumb_size_221=$(du -sh test_221/thumbs | cut -f1)
-echo "  ✓ Thumbnails: ${time_thumb_221}s ($thumb_size_221)"
+echo "  ✓ Tiles: ${time_thumb_221}s ($thumb_size_221)"
 
 echo
 echo "Step 2: Assembling PNG collage..."
@@ -63,7 +63,7 @@ echo
 identify test_221/final.png
 ls -lh test_221/final.png
 
-# TEST 2: 999 images (37×27 grid, 111×148 thumbnails)
+# TEST 2: 999 images (37×27 grid, 111×148 tiles)
 echo
 echo "=========================================="
 echo "TEST 2: 999 images (37×27 grid, 111×148 cells)"
@@ -71,7 +71,7 @@ echo "=========================================="
 
 mkdir -p test_999/thumbs
 
-echo "Step 1: Creating 999 PNG thumbnails (111×148)..."
+echo "Step 1: Creating 999 PNG tiles (111×148)..."
 time_start=$(date +%s.%N)
 
 for i in $(seq 1 999); do
@@ -86,7 +86,7 @@ done
 
 time_thumb_999=$(echo "$(date +%s.%N) - $time_start" | bc)
 thumb_size_999=$(du -sh test_999/thumbs | cut -f1)
-echo "  ✓ Thumbnails: ${time_thumb_999}s ($thumb_size_999)"
+echo "  ✓ Tiles: ${time_thumb_999}s ($thumb_size_999)"
 
 echo
 echo "Step 2: Assembling PNG collage..."
@@ -123,13 +123,13 @@ echo "============================================================"
 echo "SUMMARY"
 echo "============================================================"
 echo "221 images:"
-echo "  Thumbnails: ${time_thumb_221}s ($thumb_size_221)"
+echo "  Tiles: ${time_thumb_221}s ($thumb_size_221)"
 echo "  Montage:    ${time_montage_221}s"
 echo "  TOTAL:      ${total_221}s"
 echo "  Final PNG:  $(ls -lh test_221/final.png | awk '{print $5}')"
 echo
 echo "999 images:"
-echo "  Thumbnails: ${time_thumb_999}s ($thumb_size_999)"
+echo "  Tiles: ${time_thumb_999}s ($thumb_size_999)"
 echo "  Montage:    ${time_montage_999}s"
 echo "  TOTAL:      ${total_999}s"
 echo "  Final PNG:  $(ls -lh test_999/final.png | awk '{print $5}')"
