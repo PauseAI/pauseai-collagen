@@ -45,10 +45,10 @@ def redrive_folder(asset_folder: str, delay: float = 0.5, limit: int = None):
         .execute()
 
     all_images = search_result.get('resources', [])
-    images = all_images[:limit] if limit else all_images
+    images = all_images[:limit] if limit is not None else all_images
 
     print(f"Found {len(all_images)} images in {asset_folder}")
-    if limit:
+    if limit is not None:
         print(f"Processing first {len(images)} images (--limit {limit})")
 
     if not images:
