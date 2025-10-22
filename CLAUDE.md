@@ -7,9 +7,9 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Phase 1A complete (EC2 webhook processor), ready for Phase 2A (API Gateway + SQS)
+**Phase**: Phase 2B complete (collage generation webapp), ready for UX refinement and Phase 3 (publishing/email)
 **Branch**: main
-**Last Updated**: 2025-10-10
+**Last Updated**: 2025-10-12
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -35,11 +35,25 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] Grid optimization algorithm for 4K collages
 - [x] Redrive mechanism for backfills
 - [x] Performance validation (35-49s collage generation)
+- [x] **Phase 2A: Production webhook pipeline**
+- [x] Lambda signature validation
+- [x] API Gateway + SQS architecture
+- [x] Public ID migration (26 images: test_prototype/ → sayno/ prefix)
+- [x] Terminology adoption (ingestor, sources, tiles, renders)
+- [x] Sayno campaign enabled + backfilled (238 tiles ingested)
+- [x] **Phase 2B: Collage generation web UI**
+- [x] Core library modules (grid_optimizer, collage_generator, workflow)
+- [x] CLI tool for interactive collage building
+- [x] FastAPI webapp with Bootstrap 5 templates
+- [x] Simplified route structure (no /campaign/ prefix)
+- [x] Build ID format: YYYYMMDDTHHMMSSZ,N=CxR
+- [x] Transparent PNG padding, cropped JPEG derivatives
+- [x] Local testing successful (test_prototype, 20 tiles, 5×4 grid)
 
-### Next Steps (Revised Plan)
-- [ ] Migrate to API Gateway + SQS architecture (Phase 2A)
-- [ ] Enable sayno campaign + backfill 229 images (Phase 2A)
-- [ ] Collage generation web UI with preview (Phase 2B)
+### Next Steps
+- [ ] **UX improvements** (score breakdown, custom grid live preview)
+- [ ] **Build real sayno collage** (238 tiles) for first publication
+- [ ] Email uniqueness handling at collage generation time (#8)
 - [ ] Email notification system with dry-run mode (Phase 3)
 - [ ] Allowlist testing with pauseai.info addresses (Phase 3)
 - [ ] Production rollout: phased (test group → full users) (Phase 3)
@@ -154,14 +168,13 @@ Cloudinary → API Gateway → Lambda (sig validation) → SQS → EC2 Ingestor 
 │   │   ├── selfie_abc123.png  # Generated from source JPEG during ingestion
 │   │   └── selfie_def456.png  # Email preserved in EXIF of source
 │   ├── collages/         # Generated collages + manifests (Phase 2B)
-│   │   ├── preview.png   # Working preview (not published)
-│   │   ├── v1/
-│   │   │   ├── renders/  # Grid-sized renders (generated during composition)
-│   │   │   ├── master.png # 4K PNG collage master
-│   │   │   ├── 1920.jpg   # JPEG derivative (1920px)
-│   │   │   ├── 1024.jpg   # JPEG derivative (1024px)
-│   │   │   └── manifest.json # Manifest: tiles included, emails sent
-│   │   └── v2/
+│   │   ├── 20251012T143022Z,20=5x4/  # Build ID: timestamp,images=colsxrows
+│   │   │   ├── renders/       # Grid-sized renders (generated during composition)
+│   │   │   ├── 4096.png       # 4K PNG collage (transparent padding)
+│   │   │   ├── 4096.jpg       # 4K JPEG (cropped to actual collage size)
+│   │   │   ├── 1024.jpg       # JPEG derivative (1024px, cropped)
+│   │   │   └── manifest.json  # Manifest: layout, tiles included, publish status
+│   │   └── 20251013T091500Z,238=17x14/
 │   │       └── [same structure]
 │   └── logs/
 │       ├── ingestor.log  # Main events: INGESTED/DELETED/ERROR
@@ -319,6 +332,18 @@ source venv/bin/activate  # Python 3.10.12 via pyenv
 
 **Common tools:**
 ```bash
+# Sync tiles from EC2 to local
+./tools/sync_tiles_from_ec2.py test_prototype
+
+# Build collage interactively (CLI)
+./tools/build_collage.py test_prototype      # Use all tiles
+./tools/build_collage.py test_prototype 20   # Use 20 oldest tiles
+
+# Run webapp locally
+python webapp/main.py                        # Port 8000
+# or
+uvicorn webapp.main:app --reload --port 8000
+
 # Toggle single test image (approve/reject)
 ./venv/bin/python3 tools/toggle_test_image.py
 
@@ -354,15 +379,25 @@ ssh -i ~/.ssh/collagen-server-key.pem ubuntu@3.85.173.169 "sudo systemctl restar
 - `.env.example` template in repo
 
 **Current ingested data:**
-- test_prototype: 20 tiles in EFS (sources + tiles)
-- sayno: 238 tiles ready for backfill
-- EXIF emails: test_prototype sanitized (`collagen-test+..@antb.me`), sayno preserved as-is
+- test_prototype: 20 tiles (sources + tiles with sanitized emails)
+- sayno: 238 tiles (sources + tiles with real emails preserved)
+- Local builds: test_prototype verified working (5×4 grid, ~48s build time)
+
+**Webapp routes:**
+```
+GET  /                               Dashboard (campaign list)
+GET  /{campaign}                     Campaign page with embedded build form
+POST /{campaign}/new                 Create new collage build
+GET  /{campaign}/{build_id}          View completed build
+GET  /{campaign}/{build_id}/{filename}  Serve images (4096.png, 4096.jpg, 1024.jpg)
+```
 
 ## References
 
-- Issues: #436, #437, #488, #500 (pauseai-website), #3, #5, #6, #7 (pauseai-collagen)
+- Issues: #436, #437, #488, #500 (pauseai-website), #2, #3, #5, #6, #7, #8, #9 (pauseai-collagen)
 - Session summaries: pauseai-l10n/notes/summary/
 - Bootstrap summary: `20251001T00.sayno-bootstrap-collage-notification.summary.md`
+- Phase 2B summary: `20251013T00.phase2b-collage-webapp.summary.md`
 - FastAPI docs: https://fastapi.tiangolo.com/
 - ImageMagick montage: https://imagemagick.org/script/montage.php
 - Cloudinary moderation docs: https://cloudinary.com/documentation/moderate_assets

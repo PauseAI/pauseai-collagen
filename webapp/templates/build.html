@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Build {{ build_id }} - {{ campaign }} - Collagen{% endblock %}
+
+{% block content %}
+<h2>Build: {{ build_id }}</h2>
+
+<div class="mb-4">
+    <a href="/{{ campaign }}" class="btn btn-secondary">← Back to {{ campaign }}</a>
+    <a href="/" class="btn btn-secondary">Dashboard</a>
+</div>
+
+<div class="row">
+    <!-- Preview Column -->
+    <div class="col-md-8">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Preview</h5>
+            </div>
+            <div class="card-body text-center">
+                {% if files.jpg_1k %}
+                    <img src="/{{ campaign }}/{{ build_id }}/1024.jpg" class="img-fluid" alt="Collage Preview" style="max-width: 100%; height: auto;">
+                {% else %}
+                    <p class="text-muted">Preview not available</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Download Links -->
+        <div class="card">
+            <div class="card-header">
+                <h5>Downloads</h5>
+            </div>
+            <div class="card-body">
+                <div class="list-group">
+                    {% if files.png_4k %}
+                    <a href="/{{ campaign }}/{{ build_id }}/4096.png" class="list-group-item list-group-item-action" download>
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">4096.png</h6>
+                            <small>Master (4K, transparent)</small>
+                        </div>
+                        <p class="mb-1 text-muted">Full resolution PNG with transparent padding</p>
+                    </a>
+                    {% endif %}
+
+                    {% if files.jpg_4k %}
+                    <a href="/{{ campaign }}/{{ build_id }}/4096.jpg" class="list-group-item list-group-item-action" download>
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">4096.jpg</h6>
+                            <small>Full Resolution</small>
+                        </div>
+                        <p class="mb-1 text-muted">{{ manifest.layout.collage_width }}×{{ manifest.layout.collage_height }}px JPEG, cropped</p>
+                    </a>
+                    {% endif %}
+
+                    {% if files.jpg_1k %}
+                    <a href="/{{ campaign }}/{{ build_id }}/1024.jpg" class="list-group-item list-group-item-action" download>
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">1024.jpg</h6>
+                            <small>Web Preview</small>
+                        </div>
+                        <p class="mb-1 text-muted">Scaled JPEG for web use</p>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Metadata Column -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Build Info</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Created:</strong><br>{{ created_at_formatted }}</p>
+                <p><strong>Campaign:</strong><br>{{ campaign }}</p>
+                <p><strong>Build ID:</strong><br><code style="font-size: 0.75rem; word-break: break-all;">{{ build_id }}</code></p>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Layout</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Grid:</strong> {{ manifest.layout.cols }}×{{ manifest.layout.rows }}</p>
+                <p><strong>Cell Size:</strong> {{ manifest.layout.cell_width }}×{{ manifest.layout.cell_height }}px</p>
+                <p><strong>Collage Size:</strong> {{ manifest.layout.collage_width }}×{{ manifest.layout.collage_height }}px</p>
+                <p><strong>Strategy:</strong> {{ manifest.layout.strategy }}</p>
+                <p><strong>Score:</strong> {{ manifest.layout.score }}</p>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h5>Photos</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Count:</strong> {{ manifest.photo_count }}</p>
+                <p><strong>Total Available:</strong> {{ manifest.total_available }}</p>
+                {% if manifest.published_at %}
+                    <p><strong>Status:</strong> <span class="badge bg-success">Published</span></p>
+                {% else %}
+                    <p><strong>Status:</strong> <span class="badge bg-secondary">Draft</span></p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

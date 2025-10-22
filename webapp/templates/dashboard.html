@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Collagen{% endblock %}
+
+{% block content %}
+<h2>Campaigns</h2>
+
+<div class="row">
+    {% for campaign in campaigns %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{{ campaign }}</h5>
+
+                {% if stats[campaign].exists %}
+                    <p class="card-text">
+                        <strong>Tiles:</strong> {{ stats[campaign].tiles }}<br>
+                        <strong>Builds:</strong> {{ stats[campaign].builds|length }}
+                    </p>
+
+                    <a href="/{{ campaign }}" class="btn btn-primary">View Campaign</a>
+                {% else %}
+                    <p class="card-text text-muted">
+                        Campaign directory not found<br>
+                        <small>Run: <code>./tools/sync_tiles_from_ec2.py {{ campaign }}</code></small>
+                    </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

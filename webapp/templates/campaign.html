@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+
+{% block title %}{{ campaign }} - Collagen{% endblock %}
+
+{% block content %}
+<h2>{{ campaign }}</h2>
+
+<div class="mb-4">
+    <a href="/" class="btn btn-secondary">← Back to Dashboard</a>
+</div>
+
+<div class="row">
+    <!-- Stats Card -->
+    <div class="col-md-4">
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Stats</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Tiles:</strong> {{ stats.tiles }}</p>
+                <p><strong>Builds:</strong> {{ stats.builds|length }}</p>
+            </div>
+        </div>
+
+        <!-- Build Form Card -->
+        {% if layout_options %}
+        <div class="card mb-3">
+            <div class="card-header">
+                <h5>Build New Collage</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="/{{ campaign }}/new">
+                    <input type="hidden" name="n_images" value="{{ layout_options.n_images }}">
+
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Using {{ layout_options.n_images }} tiles</strong></label>
+                        <small class="d-block text-muted">({{ layout_options.available_tiles }} available, oldest first)</small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Select Layout:</label>
+
+                        {% for layout in layout_options.layouts %}
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="layout_choice" value="{{ layout.index }}" id="layout{{ layout.index }}" {% if loop.first %}checked{% endif %}>
+                            <label class="form-check-label" for="layout{{ layout.index }}">
+                                <pre class="mb-0">{{ layout.description }}</pre>
+                            </label>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Custom Grid Option -->
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="radio" name="layout_choice" value="custom" id="layoutCustom">
+                            <label class="form-check-label" for="layoutCustom">
+                                <strong>Custom Grid:</strong>
+                            </label>
+                        </div>
+                        <div class="ms-4 mb-2">
+                            <div class="row g-2">
+                                <div class="col-auto">
+                                    <input type="number" class="form-control form-control-sm" name="custom_cols" placeholder="cols" min="1" style="width: 80px;">
+                                </div>
+                                <div class="col-auto">×</div>
+                                <div class="col-auto">
+                                    <input type="number" class="form-control form-control-sm" name="custom_rows" placeholder="rows" min="1" style="width: 80px;">
+                                </div>
+                            </div>
+                            <small class="text-muted">Enter cols×rows (e.g., 5×4)</small>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-success w-100">Build Collage</button>
+                    <small class="d-block text-muted mt-2">Build time: ~30-60 seconds</small>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Builds List -->
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5>Recent Builds</h5>
+            </div>
+            <div class="card-body">
+                {% if stats.builds %}
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Build ID</th>
+                                <th>Photos</th>
+                                <th>Layout</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for build in stats.builds %}
+                            <tr>
+                                <td><code style="font-size: 0.75rem;">{{ build.id }}</code></td>
+                                <td>{{ build.photo_count }}</td>
+                                <td>{{ build.layout.cols }}×{{ build.layout.rows }}</td>
+                                <td>{{ build.created_at }}</td>
+                                <td>
+                                    <a href="/{{ campaign }}/{{ build.id }}" class="btn btn-sm btn-primary">View</a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                {% else %}
+                    <p class="text-muted">No builds yet. Create one using the form on the left.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
