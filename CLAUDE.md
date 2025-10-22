@@ -7,9 +7,10 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Phase 2B complete (collage generation webapp), ready for UX refinement and Phase 3 (publishing/email)
+**Phase**: Phase 2B complete (collage generation webapp), ready for validation and deployment
 **Branch**: main
-**Last Updated**: 2025-10-12
+**Last Updated**: 2025-10-22
+**Status**: Code pushed from failing laptop - needs validation before EC2 deployment
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -50,9 +51,14 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] Transparent PNG padding, cropped JPEG derivatives
 - [x] Local testing successful (test_prototype, 20 tiles, 5×4 grid)
 
-### Next Steps
-- [ ] **UX improvements** (score breakdown, custom grid live preview)
+### Next Steps (Immediate)
+- [ ] **Validate Phase 2B code** (emergency push from failing laptop on 2025-10-22)
+- [ ] **Deploy webapp to EC2** (FastAPI + systemd service)
+- [ ] **Full webapp testing** (build → view → download flow)
 - [ ] **Build real sayno collage** (238 tiles) for first publication
+
+### Next Steps (After Validation)
+- [ ] UX improvements (score breakdown, custom grid live preview)
 - [ ] Email uniqueness handling at collage generation time (#8)
 - [ ] Email notification system with dry-run mode (Phase 3)
 - [ ] Allowlist testing with pauseai.info addresses (Phase 3)
