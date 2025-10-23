@@ -190,19 +190,24 @@ def generate_montage(renders_dir: Path, output_path: Path, cols: int, rows: int,
 
 
 def generate_derivatives(master_path: Path, output_dir: Path, collage_width: int, collage_height: int,
-                        sizes: List[int] = [4096, 1024]):
+                        sizes: List[int] = [4096, 1024], target_size: int = 4096):
     """
     Generate JPEG derivatives at various sizes.
 
-    Crops to actual collage dimensions, converts transparency to white background.
+    Crops to actual collage dimensions (handling centered padding), converts transparency to white background.
 
     Args:
-        master_path: Path to 4096.png (may have transparent padding to reach 4096×4096)
+        master_path: Path to 4096.png (may have transparent padding to reach target_size×target_size)
         output_dir: Output directory
         collage_width: Actual collage width (e.g., 3840)
         collage_height: Actual collage height (e.g., 4096)
         sizes: List of max dimensions for derivatives (default: [4096, 1024])
+        target_size: Target PNG size (default: 4096)
     """
+    # Calculate crop offset for centered padding
+    offset_x = (target_size - collage_width) // 2
+    offset_y = (target_size - collage_height) // 2
+
     for size in sizes:
         output_path = output_dir / f"{size}.jpg"
 
@@ -215,7 +220,7 @@ def generate_derivatives(master_path: Path, output_dir: Path, collage_width: int
             [
                 "convert",
                 str(master_path),
-                "-crop", f"{collage_width}x{collage_height}+0+0",  # Crop to actual collage
+                "-crop", f"{collage_width}x{collage_height}+{offset_x}+{offset_y}",  # Crop from center
                 "+repage",
                 "-background", "white",  # White background for transparent areas
                 "-alpha", "remove",      # Flatten transparency
