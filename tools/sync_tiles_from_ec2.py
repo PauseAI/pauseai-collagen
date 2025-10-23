@@ -11,12 +11,16 @@ import sys
 import subprocess
 from pathlib import Path
 
+# Add parent directory to path for lib imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from lib.config import DATA_DIR
+
 # EC2 connection details (from CLAUDE.md)
 EC2_HOST = "3.85.173.169"
 EC2_USER = "ubuntu"
 SSH_KEY = Path.home() / ".ssh" / "collagen-server-key.pem"
 REMOTE_BASE = "/mnt/efs"
-LOCAL_BASE = Path("/tmp/collagen-local")
 
 
 def sync_campaign(campaign: str):
@@ -28,7 +32,7 @@ def sync_campaign(campaign: str):
         sys.exit(1)
 
     # Create local directory structure
-    local_campaign = LOCAL_BASE / campaign
+    local_campaign = DATA_DIR / campaign
     (local_campaign / "tiles").mkdir(parents=True, exist_ok=True)
     (local_campaign / "collages").mkdir(parents=True, exist_ok=True)
     (local_campaign / "logs").mkdir(parents=True, exist_ok=True)

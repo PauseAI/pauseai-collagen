@@ -19,10 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from lib.workflow import get_layout_options, validate_custom_layout
 from lib.grid_optimizer import format_layout_description
 from lib.collage_generator import build_collage
-
-
-# Configuration
-LOCAL_BASE = Path("/tmp/collagen-local")
+from lib.config import get_campaign_dir
 
 # Setup logging
 logging.basicConfig(
@@ -125,11 +122,12 @@ def main():
 
     campaign = sys.argv[1]
 
-    campaign_dir = LOCAL_BASE / campaign
+    campaign_dir = get_campaign_dir(campaign)
 
     if not campaign_dir.exists():
         print(f"❌ Campaign directory not found: {campaign_dir}")
-        print(f"   Run ./tools/sync_tiles_from_ec2.py {campaign} first")
+        print(f"   Run ./tools/sync_tiles_from_ec2.py {campaign} first (dev)")
+        print(f"   Or set COLLAGEN_DATA_DIR=/mnt/efs (prod)")
         sys.exit(1)
 
     # Default to all available tiles if not specified

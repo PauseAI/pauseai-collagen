@@ -2,6 +2,11 @@
 Collage generation module.
 
 Handles tile selection, render generation, ImageMagick montage, and manifest creation.
+
+Configuration:
+- Set COLLAGEN_DATA_DIR environment variable for data location
+- Dev: defaults to /tmp/collagen-local
+- Prod: export COLLAGEN_DATA_DIR=/mnt/efs
 """
 
 import json

@@ -27,10 +27,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from lib.workflow import get_layout_options, validate_custom_layout
 from lib.grid_optimizer import format_layout_description
 from lib.collage_generator import build_collage
+from lib.config import DATA_DIR, get_campaign_dir
 
 
 # Configuration
-LOCAL_BASE = Path("/tmp/collagen-local")
 CAMPAIGNS = ["test_prototype", "sayno"]  # Available campaigns
 
 # Setup logging
@@ -52,7 +52,7 @@ app.mount("/static", StaticFiles(directory=str(Path(__file__).parent / "static")
 
 def get_campaign_stats(campaign: str) -> Dict[str, Any]:
     """Get stats for a campaign."""
-    campaign_dir = LOCAL_BASE / campaign
+    campaign_dir = get_campaign_dir(campaign)
 
     if not campaign_dir.exists():
         return {
@@ -113,11 +113,11 @@ async def campaign_detail(request: Request, campaign: str, n_images: Optional[in
     if campaign not in CAMPAIGNS:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    campaign_dir = LOCAL_BASE / campaign
+    campaign_dir = get_campaign_dir(campaign)
     stats = get_campaign_stats(campaign)
 
     if not stats["exists"]:
-        raise HTTPException(status_code=404, detail=f"Campaign directory not found: {LOCAL_BASE / campaign}")
+        raise HTTPException(status_code=404, detail=f"Campaign directory not found: {get_campaign_dir(campaign)}")
 
     # Default to all tiles if not specified
     if n_images is None:
@@ -166,7 +166,7 @@ async def create_build(
     if campaign not in CAMPAIGNS:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    campaign_dir = LOCAL_BASE / campaign
+    campaign_dir = get_campaign_dir(campaign)
 
     # Get layout
     if layout_choice == "custom":
@@ -214,7 +214,7 @@ async def view_build(request: Request, campaign: str, build_id: str):
     if campaign not in CAMPAIGNS:
         raise HTTPException(status_code=404, detail="Campaign not found")
 
-    build_dir = LOCAL_BASE / campaign / "collages" / build_id
+    build_dir = get_campaign_dir(campaign) / "collages" / build_id
 
     if not build_dir.exists():
         raise HTTPException(status_code=404, detail="Build not found")
@@ -255,7 +255,7 @@ async def serve_image(campaign: str, build_id: str, filename: str):
     if filename not in allowed_files:
         raise HTTPException(status_code=404, detail="File not found")
 
-    file_path = LOCAL_BASE / campaign / "collages" / build_id / filename
+    file_path = get_campaign_dir(campaign) / "collages" / build_id / filename
 
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="File not found")
