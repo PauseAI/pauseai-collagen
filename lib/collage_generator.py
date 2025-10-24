@@ -301,7 +301,7 @@ def build_collage(campaign_dir: Path, layout: Dict[str, Any], n_images: int,
         Path to build directory
     """
     if logger:
-        logger.info(f"Building collage: {layout['cols']}×{layout['rows']}, {n_images} images")
+        logger.info(f"Building collage: {layout['cols']}×{layout['rows']}, {layout['used_images']} images")
 
     # Create build directory
     if not build_id:
@@ -315,7 +315,7 @@ def build_collage(campaign_dir: Path, layout: Dict[str, Any], n_images: int,
 
     # Select tiles (oldest first)
     tiles_dir = campaign_dir / "tiles"
-    tiles = get_tiles_oldest_first(tiles_dir, limit=n_images)
+    tiles = get_tiles_oldest_first(tiles_dir, limit=layout['used_images'])
 
     if logger:
         logger.info(f"Selected {len(tiles)} tiles (oldest first)")
