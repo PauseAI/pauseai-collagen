@@ -7,10 +7,10 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Phase 2B complete (collage generation webapp), ready for validation and deployment
+**Phase**: Phase 2B validated and deployed, ready for Phase 3 (email notifications)
 **Branch**: main
-**Last Updated**: 2025-10-22
-**Status**: Code pushed from failing laptop - needs validation before EC2 deployment
+**Last Updated**: 2025-10-23
+**Production Build**: 20251024T230728Z,266=19x14 (266 images, 281 tiles available)
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -50,14 +50,13 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] Build ID format: YYYYMMDDTHHMMSSZ,N=CxR
 - [x] Transparent PNG padding, cropped JPEG derivatives
 - [x] Local testing successful (test_prototype, 20 tiles, 5×4 grid)
+- [x] **Phase 2B validation complete** (2025-10-23)
+- [x] JPEG crop bug fixed (centered padding handling)
+- [x] Tile selection bug fixed (montage pagination issue resolved)
+- [x] Production collage built (266 images, clean email uniqueness)
+- [x] Deployed to EC2 with COLLAGEN_DATA_DIR environment config
 
-### Next Steps (Immediate)
-- [ ] **Validate Phase 2B code** (emergency push from failing laptop on 2025-10-22)
-- [ ] **Deploy webapp to EC2** (FastAPI + systemd service)
-- [ ] **Full webapp testing** (build → view → download flow)
-- [ ] **Build real sayno collage** (238 tiles) for first publication
-
-### Next Steps (After Validation)
+### Next Steps (Phase 3)
 - [ ] UX improvements (score breakdown, custom grid live preview)
 - [ ] Email uniqueness handling at collage generation time (#8)
 - [ ] Email notification system with dry-run mode (Phase 3)
@@ -386,8 +385,8 @@ ssh -i ~/.ssh/collagen-server-key.pem ubuntu@3.85.173.169 "sudo systemctl restar
 
 **Current ingested data:**
 - test_prototype: 20 tiles (sources + tiles with sanitized emails)
-- sayno: 238 tiles (sources + tiles with real emails preserved)
-- Local builds: test_prototype verified working (5×4 grid, ~48s build time)
+- sayno: 281 tiles (sources + tiles with real emails preserved)
+- Production collage: 20251024T230728Z,266=19x14 (266 images, ~2m23s build time)
 
 **Webapp routes:**
 ```
