@@ -7,10 +7,11 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Phase 2B validated and deployed, ready for Phase 3 (email notifications)
+**Phase**: Phase 3 infrastructure complete, ready for email template + send script
 **Branch**: main
-**Last Updated**: 2025-10-23
+**Last Updated**: 2025-10-25
 **Production Build**: 20251024T230728Z,266=19x14 (266 images, 281 tiles available)
+**Tracking Infrastructure**: Deployed and operational at collagen.pauseai.info
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -55,14 +56,27 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] Tile selection bug fixed (montage pagination issue resolved)
 - [x] Production collage built (266 images, clean email uniqueness)
 - [x] Deployed to EC2 with COLLAGEN_DATA_DIR environment config
+- [x] **Phase 3: Tracking infrastructure** (2025-10-25)
+- [x] SQLite tracking database (users + collages tables)
+- [x] TrackingDB library with UID generation and idempotent updates
+- [x] S3 bucket for collage images (pauseai-collagen)
+- [x] Upload script (build_id + latest)
+- [x] SQS queue (collagen-tracking-queue)
+- [x] Lambda + API Gateway (collagen.pauseai.info)
+- [x] EC2 tracking worker (systemd service)
+- [x] Custom domain with ACM cert + DNS
+- [x] End-to-end testing with real collage data
+- [x] Inspection tools (check_tracking_stats.py)
 
-### Next Steps (Phase 3)
-- [ ] UX improvements (score breakdown, custom grid live preview)
+### Next Steps (Phase 3 Continuation)
+- [ ] Email template design (HTML + plain text, tracking URLs)
+- [ ] Email send script with dry-run mode
+- [ ] pauseai-website updates (banner detection on /sayno and /join)
+- [ ] Allowlist testing with pauseai.info addresses
+- [ ] Production rollout: phased (test group → full users)
 - [ ] Email uniqueness handling at collage generation time (#8)
-- [ ] Email notification system with dry-run mode (Phase 3)
-- [ ] Allowlist testing with pauseai.info addresses (Phase 3)
-- [ ] Production rollout: phased (test group → full users) (Phase 3)
-- [ ] AWS Backup for EFS (Phase 3)
+- [ ] UX improvements (score breakdown, custom grid live preview)
+- [ ] AWS Backup for EFS
 - [ ] Monitoring and handoff (MVP)
 
 ## Tech Stack
