@@ -7,11 +7,12 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Phase 3 infrastructure complete, ready for email template + send script
+**Phase**: Phase 3 - SMTP working, ready for email templates + social sharing
 **Branch**: main
 **Last Updated**: 2025-10-25
 **Production Build**: 20251024T230728Z,266=19x14 (266 images, 281 tiles available)
 **Tracking Infrastructure**: Deployed and operational at collagen.pauseai.info
+**Email Sending**: SMTP configured, tested from EC2, ready for production use
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -67,11 +68,16 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] Custom domain with ACM cert + DNS
 - [x] End-to-end testing with real collage data
 - [x] Inspection tools (check_tracking_stats.py)
+- [x] **SMTP setup and testing** (2025-10-25)
+- [x] DKIM enabled for pauseai.info domain
+- [x] sayno@pauseai.info account created (2FA + app password)
+- [x] SMTP tested locally and from EC2 (all auth passing)
 
 ### Next Steps (Phase 3 Continuation)
+- [ ] Social network link helpers (Open Graph meta tags)
 - [ ] Email template design (HTML + plain text, tracking URLs)
 - [ ] Email send script with dry-run mode
-- [ ] pauseai-website updates (banner detection on /sayno and /join)
+- [ ] pauseai-website updates (Open Graph tags, banner detection on /sayno and /join)
 - [ ] Allowlist testing with pauseai.info addresses
 - [ ] Production rollout: phased (test group → full users)
 - [ ] Email uniqueness handling at collage generation time (#8)
@@ -306,11 +312,12 @@ for photo in cloudinary.resources_by_moderation('manual', 'approved', prefix='sa
 
 ## Security Notes
 
-- **Secrets**: Cloudinary API secret in .env (not committed), AWS keys in ~/.aws/credentials
+- **Secrets**: Cloudinary API secret, SMTP app password in .env (not committed), AWS keys in ~/.aws/credentials
 - **SSH**: Key-based auth only on EC2 (dynamic IP requires security group updates)
 - **EFS**: Security group restricts NFS (port 2049) to self-referencing
 - **Email Data**: Never commit to Git
 - **Webhook Validation**: Verify Cloudinary signatures on webhook payloads (X-Cld-Signature header)
+- **SMTP Auth**: App password (16 chars), requires 2FA on sayno@pauseai.info
 
 ## Cost Target
 
@@ -318,9 +325,10 @@ for photo in cloudinary.resources_by_moderation('manual', 'approved', prefix='sa
 |---------|--------------|
 | EC2 t3.micro (free tier 12mo) | $0 → $7 |
 | EFS (30GB) | $9 |
-| API Gateway (if webhooks) | ~$0 at our scale |
-| Lambda (if webhooks) | ~$0 at our scale |
-| SQS (if webhooks) | ~$0 at our scale |
+| API Gateway | ~$0 at our scale |
+| Lambda | ~$0 at our scale |
+| SQS | ~$0 at our scale |
+| Google Workspace (nonprofit) | $0 (free tier, <2000 users) |
 | **Total** | **$9-16/month** |
 
 ## Rate Limit Analysis
@@ -334,6 +342,11 @@ for photo in cloudinary.resources_by_moderation('manual', 'approved', prefix='sa
 - Zero Admin API calls (webhooks push to us)
 - Only fetches: 1 API call per approved photo to get metadata
 - At 5000 photos over months: ~1 call/hour average ✅
+
+**Email sending (SMTP via Google Workspace):**
+- Free tier limit: 2,000 emails/day per user
+- Current need: 266 emails per collage (well under limit)
+- No API calls, direct SMTP connection ✅
 
 **Backfill (one-time operations):**
 - 142 photos × 2 API calls (pending + approved) = 284 calls
@@ -374,6 +387,9 @@ uvicorn webapp.main:app --reload --port 8000
 
 # Grid optimizer (edit OMIT_BASE_COST, PAD_COST, CLIP_COST at top)
 ./venv/bin/python3 tools/optimize_grid_v3.py
+
+# Test SMTP sending (local or EC2)
+./tools/test_smtp.py recipient@example.com
 ```
 
 **Check EFS on EC2:**
@@ -417,6 +433,7 @@ GET  /{campaign}/{build_id}/{filename}  Serve images (4096.png, 4096.jpg, 1024.j
 - Session summaries: pauseai-l10n/notes/summary/
 - Bootstrap summary: `20251001T00.sayno-bootstrap-collage-notification.summary.md`
 - Phase 2B summary: `20251013T00.phase2b-collage-webapp.summary.md`
+- Phase 3 SMTP summary: `20251025T13.smtp-setup.summary.md`
 - FastAPI docs: https://fastapi.tiangolo.com/
 - ImageMagick montage: https://imagemagick.org/script/montage.php
 - Cloudinary moderation docs: https://cloudinary.com/documentation/moderate_assets
