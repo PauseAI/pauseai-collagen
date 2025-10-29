@@ -194,6 +194,39 @@ class TrackingDB:
             )
             return cursor.rowcount > 0
 
+    def record_share(self, uid: str, platform: str):
+        """
+        Record a social share intent event.
+        Tracks when user clicked share link and was redirected to social platform.
+        Note: Does not confirm share was completed/posted.
+        Allows multiple shares per user per platform over time.
+
+        Args:
+            uid: User UID
+            platform: Platform name ('facebook', 'twitter', 'whatsapp', 'linkedin', 'reddit')
+        """
+        timestamp = now_iso()
+
+        with sqlite3.connect(self.db_path) as conn:
+            # Insert share record
+            conn.execute(
+                """
+                INSERT INTO shares (uid, platform, shared_at)
+                VALUES (?, ?, ?)
+                """,
+                (uid, platform, timestamp)
+            )
+
+            # Update user's updated_at timestamp
+            conn.execute(
+                """
+                UPDATE users
+                SET updated_at = ?
+                WHERE uid = ?
+                """,
+                (timestamp, uid)
+            )
+
     def get_user_collages(self, uid: str) -> list[dict]:
         """Get all collages this user appears in."""
         with sqlite3.connect(self.db_path) as conn:

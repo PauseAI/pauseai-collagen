@@ -24,10 +24,22 @@ CREATE TABLE collages (
     FOREIGN KEY (uid) REFERENCES users(uid) ON DELETE CASCADE
 );
 
+-- Social shares: track when users share on social platforms
+-- Allows multiple shares per user per platform over time
+CREATE TABLE shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    uid TEXT NOT NULL,
+    platform TEXT NOT NULL,            -- 'facebook', 'twitter', 'whatsapp', 'linkedin', 'reddit'
+    shared_at TEXT NOT NULL,           -- ISO8601: when they clicked share button
+    FOREIGN KEY (uid) REFERENCES users(uid) ON DELETE CASCADE
+);
+
 -- Indexes for fast lookups
 CREATE INDEX idx_users_email ON users(email);
 CREATE INDEX idx_collages_uid ON collages(uid);
 CREATE INDEX idx_collages_build ON collages(build_id);
+CREATE INDEX idx_shares_uid ON shares(uid);
+CREATE INDEX idx_shares_platform ON shares(platform);
 
 -- Derived states (computed from timestamps):
 -- Uncontacted: No record exists OR emailed_at IS NULL

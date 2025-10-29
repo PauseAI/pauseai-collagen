@@ -2,9 +2,10 @@
 Lambda function for tracking URL routing.
 
 Routes:
-  /t/{campaign}/{uid}/{build_id}.jpg  → Enqueue SQS + redirect to S3 image
-  /t/{campaign}/{uid}/validate        → Enqueue SQS + redirect to pauseai.info/{campaign}?collagen_uid_{campaign}={uid}
-  /t/{campaign}/{uid}/subscribe       → Enqueue SQS + redirect to pauseai.info/join?collagen_uid_{campaign}={uid}
+  /t/{campaign}/{uid}/{build_id}.jpg     → Enqueue SQS + redirect to S3 image
+  /t/{campaign}/{uid}/validate           → Enqueue SQS + redirect to pauseai.info/{campaign}?collagen_uid_{campaign}={uid}
+  /t/{campaign}/{uid}/subscribe          → Enqueue SQS + redirect to pauseai.info/join?collagen_uid_{campaign}={uid}
+  /t/{campaign}/{uid}/share/{platform}   → Enqueue SQS + redirect to social network share URL
 """
 
 import json
@@ -18,6 +19,25 @@ import boto3
 QUEUE_NAME = os.environ.get('QUEUE_NAME', 'collagen-tracking-queue')
 REGION = os.environ.get('AWS_REGION', 'us-east-1')
 S3_BUCKET = os.environ.get('S3_BUCKET', 'pauseai-collagen')
+
+# Social share configuration
+SHARE_CONFIG = {
+    'test_prototype': {
+        'share_url_base': 'https://pauseai.info/sayno',
+        'share_title': 'Test me in calling for a pause on superintelligence development',
+        'hashtags': 'AISafety,PauseAI',
+        'twitter_via': 'PauseAI'
+    },
+    'sayno': {
+        'share_url_base': 'https://pauseai.info/sayno',
+        'share_title': 'Join me in calling for a pause on superintelligence development',
+        'hashtags': 'AISafety,PauseAI',
+        'twitter_via': 'PauseAI'
+    }
+}
+
+# Allowed share platforms (security: prevent open redirect)
+ALLOWED_PLATFORMS = ['facebook', 'twitter', 'whatsapp', 'linkedin', 'reddit']
 
 # Initialize SQS client
 sqs = boto3.client('sqs', region_name=REGION)
@@ -46,6 +66,42 @@ def enqueue_tracking_event(path: str):
         QueueUrl=get_queue_url(),
         MessageBody=message_body
     )
+
+
+def generate_share_url(platform: str, share_url: str, config: dict) -> str:
+    """
+    Generate platform-specific social share URL.
+
+    Args:
+        platform: Social platform (facebook, twitter, whatsapp, linkedin, reddit)
+        share_url: URL to share (pauseai.info with ?ref=uid)
+        config: Campaign share configuration (title, hashtags, etc.)
+
+    Returns:
+        Social network share URL with pre-populated content
+    """
+    title = config['share_title']
+
+    if platform == 'facebook':
+        return f"https://www.facebook.com/sharer.php?u={quote(share_url)}"
+
+    elif platform == 'twitter':
+        hashtags = config['hashtags']
+        via = config['twitter_via']
+        return f"https://twitter.com/intent/tweet?url={quote(share_url)}&text={quote(title)}&hashtags={hashtags}&via={via}"
+
+    elif platform == 'whatsapp':
+        text = f"{title} {share_url}"
+        return f"https://api.whatsapp.com/send?text={quote(text)}"
+
+    elif platform == 'linkedin':
+        return f"https://www.linkedin.com/sharing/share-offsite/?url={quote(share_url)}"
+
+    elif platform == 'reddit':
+        return f"https://reddit.com/submit?url={quote(share_url)}&title={quote(title)}"
+
+    else:
+        raise ValueError(f"Unsupported platform: {platform}")
 
 
 def parse_path(path: str) -> dict:
@@ -84,6 +140,17 @@ def parse_path(path: str) -> dict:
             'event_type': 'subscribe',
             'campaign': campaign,
             'uid': uid
+        }
+
+    # Share event: /t/{campaign}/{uid}/share/{platform}
+    match = re.match(r'/t/([^/]+)/([^/]+)/share/([^/]+)$', path)
+    if match:
+        campaign, uid, platform = match.groups()
+        return {
+            'event_type': 'share',
+            'campaign': campaign,
+            'uid': uid,
+            'platform': platform
         }
 
     return None
@@ -129,11 +196,38 @@ def lambda_handler(event, context):
     elif event_type == 'validate':
         # Map test_prototype to sayno for website display (dev convention)
         display_campaign = 'sayno' if campaign == 'test_prototype' else campaign
-        redirect_url = f"https://pauseai.info/{display_campaign}?collagen_uid_{campaign}={uid}"
+        redirect_url = f"https://pauseai.info/{display_campaign}?collagen_uid_{display_campaign}={uid}"
 
     elif event_type == 'subscribe':
-        # Redirect to join page with campaign-aware collagen_uid
-        redirect_url = f"https://pauseai.info/join?collagen_uid_{campaign}={uid}"
+        # Map test_prototype to sayno for website display (dev convention)
+        display_campaign = 'sayno' if campaign == 'test_prototype' else campaign
+        # Redirect to join page with display campaign in UID parameter
+        redirect_url = f"https://pauseai.info/join?collagen_uid_{display_campaign}={uid}"
+
+    elif event_type == 'share':
+        # Validate platform
+        platform = parsed['platform']
+        if platform not in ALLOWED_PLATFORMS:
+            print(f"ERROR: Invalid platform: {platform}")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'Invalid platform'})
+            }
+
+        # Get campaign config
+        config = SHARE_CONFIG.get(campaign)
+        if not config:
+            print(f"ERROR: Invalid campaign: {campaign}")
+            return {
+                'statusCode': 400,
+                'body': json.dumps({'error': 'Invalid campaign'})
+            }
+
+        # Generate share URL with ref parameter
+        share_url = f"{config['share_url_base']}?ref={uid}"
+
+        # Generate platform-specific social share URL
+        redirect_url = generate_share_url(platform, share_url, config)
 
     else:
         return {

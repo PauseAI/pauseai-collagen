@@ -49,12 +49,13 @@ def parse_tracking_path(path: str) -> dict:
     Parse tracking URL path into components.
 
     Paths:
-      /t/{campaign}/{uid}/{build_id}.jpg  → open event
-      /t/{campaign}/{uid}/validate        → validate event
-      /t/{campaign}/{uid}/subscribe       → subscribe event
+      /t/{campaign}/{uid}/{build_id}.jpg     → open event
+      /t/{campaign}/{uid}/validate           → validate event
+      /t/{campaign}/{uid}/subscribe          → subscribe event
+      /t/{campaign}/{uid}/share/{platform}   → share event
 
     Returns:
-        dict with keys: event_type, campaign, uid, build_id (if open event)
+        dict with keys: event_type, campaign, uid, build_id (if open event), platform (if share event)
         None if path doesn't match
     """
     # Open event
@@ -86,6 +87,17 @@ def parse_tracking_path(path: str) -> dict:
             'event_type': 'subscribe',
             'campaign': campaign,
             'uid': uid
+        }
+
+    # Share event
+    match = re.match(r'/t/([^/]+)/([^/]+)/share/([^/]+)$', path)
+    if match:
+        campaign, uid, platform = match.groups()
+        return {
+            'event_type': 'share',
+            'campaign': campaign,
+            'uid': uid,
+            'platform': platform
         }
 
     return None
@@ -147,6 +159,25 @@ def handle_subscribe_event(campaign: str, uid: str):
         logger.debug(f"SUBSCRIBED (duplicate): {campaign}/{uid}")
 
 
+def handle_share_event(campaign: str, uid: str, platform: str):
+    """
+    Handle social share intent event.
+    Records when user clicked share link (redirected to social platform).
+    Note: Does not confirm share was completed/posted.
+    """
+    db = TrackingDB(campaign, DATA_DIR)
+    user = db.get_user_by_uid(uid)
+
+    if not user:
+        logger.warning(f"SHARE_INTENT: Unknown UID {uid} in campaign {campaign}")
+        return
+
+    # Record share intent (user clicked, was redirected to platform)
+    # Does not confirm actual post completion
+    db.record_share(uid, platform)
+    logger.info(f"SHARE_INTENT: {campaign}/{uid} platform={platform} (email={user['email']})")
+
+
 def process_message(message: dict):
     """Process a single SQS message."""
     try:
@@ -174,6 +205,8 @@ def process_message(message: dict):
             handle_validate_event(campaign, uid)
         elif event_type == 'subscribe':
             handle_subscribe_event(campaign, uid)
+        elif event_type == 'share':
+            handle_share_event(campaign, uid, event['platform'])
 
     except Exception as e:
         logger.error(f"Error processing message: {e}", exc_info=True)
