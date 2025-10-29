@@ -7,12 +7,14 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Phase 3 - SMTP working, ready for email templates + social sharing
+**Phase**: Phase 3 - Social sharing + website integration in progress
 **Branch**: main
-**Last Updated**: 2025-10-25
+**Last Updated**: 2025-10-27
 **Production Build**: 20251024T230728Z,266=19x14 (266 images, 281 tiles available)
 **Tracking Infrastructure**: Deployed and operational at collagen.pauseai.info
 **Email Sending**: SMTP configured, tested from EC2, ready for production use
+**Share Tracking**: Implemented, tested on test_prototype (#11)
+**Website Integration**: PR #521 submitted to pauseai-website
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -72,12 +74,25 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] DKIM enabled for pauseai.info domain
 - [x] sayno@pauseai.info account created (2FA + app password)
 - [x] SMTP tested locally and from EC2 (all auth passing)
+- [x] **Social share tracking** (2025-10-27) - #11
+- [x] Lambda share routes (5 platforms: Facebook, Twitter, WhatsApp, LinkedIn, Reddit)
+- [x] SQLite shares table with migration script
+- [x] Tracking worker share intent handling
+- [x] End-to-end testing on test_prototype campaign
+- [x] Lambda deployed to AWS
+- [x] **Collage derivatives optimization** (2025-10-29)
+- [x] DERIVATIVE_SIZES constant [4096, 1024, 400]
+- [x] JPEG quality optimization (90 → 85)
+- [x] Upload script handles all three sizes
+- [x] **Website integration** (2025-10-29) - pauseai-website PR #521
+- [x] Open Graph metadata with collage images for social sharing
+- [x] S3 image integration on /sayno and book pages
+- [x] Contextual messaging for email tracking links (validate/subscribe)
 
 ### Next Steps (Phase 3 Continuation)
-- [ ] Social network link helpers (Open Graph meta tags)
+- [ ] Run migration on production sayno campaign (#11)
 - [ ] Email template design (HTML + plain text, tracking URLs)
 - [ ] Email send script with dry-run mode
-- [ ] pauseai-website updates (Open Graph tags, banner detection on /sayno and /join)
 - [ ] Allowlist testing with pauseai.info addresses
 - [ ] Production rollout: phased (test group → full users)
 - [ ] Email uniqueness handling at collage generation time (#8)
