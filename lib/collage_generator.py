@@ -18,6 +18,13 @@ from datetime import datetime
 from collections import Counter
 
 
+# Derivative JPEG sizes generated from master 4096.png
+# 4096: Full resolution (4K)
+# 1024: Medium resolution for web display and social sharing
+# 400: Thumbnail for fast page load
+DERIVATIVE_SIZES = [4096, 1024, 400]
+
+
 def get_tiles_oldest_first(tiles_dir: Path, limit: Optional[int] = None) -> List[Path]:
     """
     Get tiles sorted by modification time (oldest first).
@@ -190,7 +197,7 @@ def generate_montage(renders_dir: Path, output_path: Path, cols: int, rows: int,
 
 
 def generate_derivatives(master_path: Path, output_dir: Path, collage_width: int, collage_height: int,
-                        sizes: List[int] = [4096, 1024], target_size: int = 4096):
+                        sizes: List[int] = None, target_size: int = 4096, logger=None):
     """
     Generate JPEG derivatives at various sizes.
 
@@ -201,9 +208,17 @@ def generate_derivatives(master_path: Path, output_dir: Path, collage_width: int
         output_dir: Output directory
         collage_width: Actual collage width (e.g., 3840)
         collage_height: Actual collage height (e.g., 4096)
-        sizes: List of max dimensions for derivatives (default: [4096, 1024])
+        sizes: List of max dimensions for derivatives (default: DERIVATIVE_SIZES)
         target_size: Target PNG size (default: 4096)
+        logger: Optional logger
     """
+    if sizes is None:
+        sizes = DERIVATIVE_SIZES
+
+    if logger:
+        sizes_str = ', '.join(f"{s}px" for s in sizes)
+        logger.info(f"Generating JPEG derivatives ({sizes_str})")
+
     # Calculate crop offset for centered padding
     offset_x = (target_size - collage_width) // 2
     offset_y = (target_size - collage_height) // 2
@@ -226,7 +241,7 @@ def generate_derivatives(master_path: Path, output_dir: Path, collage_width: int
                 "-alpha", "remove",      # Flatten transparency
                 "-alpha", "off",         # Ensure no alpha channel in output
                 "-resize", f"{output_width}x{output_height}",
-                "-quality", "90",
+                "-quality", "85",        # Optimized for web/social (balances quality vs file size)
                 str(output_path)
             ],
             check=True
@@ -344,10 +359,7 @@ def build_collage(campaign_dir: Path, layout: Dict[str, Any], n_images: int,
     )
 
     # Generate derivatives
-    if logger:
-        logger.info("Generating JPEG derivatives (4096px, 1024px)")
-
-    generate_derivatives(png_4k_path, build_dir, layout['collage_width'], layout['collage_height'])
+    generate_derivatives(png_4k_path, build_dir, layout['collage_width'], layout['collage_height'], logger=logger)
 
     # Create manifest
     if logger:
