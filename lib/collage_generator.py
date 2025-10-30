@@ -262,11 +262,11 @@ def create_manifest(build_dir: Path, layout: Dict[str, Any], tiles: List[Path],
     Returns:
         Manifest dict
     """
-    # Extract photo metadata
-    photos = []
+    # Extract tile metadata
+    tile_jsons = []
     for tile in tiles:
         email = extract_email_from_tile(tile)
-        photos.append({
+        tile_jsons.append({
             "filename": tile.name,
             "email": email
         })
@@ -285,9 +285,9 @@ def create_manifest(build_dir: Path, layout: Dict[str, Any], tiles: List[Path],
             "strategy": layout['strategy'],
             "score": layout['total_score']
         },
-        "photo_count": len(tiles),
+        "tile_count": len(tiles),
         "total_available": n_images,
-        "photos": photos,
+        "tiles": tile_jsons,
         "permanent_url": None,  # Set when published
         "emails_sent": 0,
         "email_log": None
