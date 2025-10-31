@@ -15,7 +15,6 @@ import time
 from pathlib import Path
 
 import boto3
-import requests
 from botocore.exceptions import ClientError
 
 # Add lib/ to path for tracking module
@@ -31,9 +30,6 @@ MAX_MESSAGES = 10  # per poll
 
 # S3 configuration
 S3_BUCKET = "pauseai-collagen"
-
-# Substack configuration
-SUBSTACK_SUBSCRIBE_URL = "https://pauseai.substack.com/api/v1/free"
 
 # Data directory
 DATA_DIR = os.environ.get("COLLAGEN_DATA_DIR", "/mnt/efs")
@@ -138,7 +134,8 @@ def handle_validate_event(campaign: str, uid: str):
 def handle_subscribe_event(campaign: str, uid: str):
     """
     Handle subscription event.
-    Validates user and subscribes them to Substack newsletter.
+    Records that user clicked subscribe link (intent to subscribe).
+    User will complete actual subscription in their browser.
     """
     db = TrackingDB(campaign, DATA_DIR)
     user = db.get_user_by_uid(uid)
@@ -147,25 +144,17 @@ def handle_subscribe_event(campaign: str, uid: str):
         logger.warning(f"SUBSCRIBE: Unknown UID {uid} in campaign {campaign}")
         return
 
-    updated = db.mark_subscribed(uid)
-    if updated:
-        email = user['email']
-        logger.info(f"SUBSCRIBED: {campaign}/{uid} (email={email})")
+    email = user['email']
 
-        # Subscribe to Substack newsletter via API
-        try:
-            response = requests.post(
-                SUBSTACK_SUBSCRIBE_URL,
-                json={"email": email},
-                timeout=10
-            )
-            response.raise_for_status()
-            logger.info(f"SUBSTACK: Subscribed {email} successfully")
-        except requests.RequestException as e:
-            logger.error(f"SUBSTACK: Failed to subscribe {email}: {e}")
-            # Don't fail the tracking update - user intent is recorded
-    else:
-        logger.debug(f"SUBSCRIBED (duplicate): {campaign}/{uid}")
+    # Check if already subscribed
+    if user.get('subscribed_at'):
+        logger.debug(f"SUBSCRIBE (duplicate): {campaign}/{uid}")
+        return
+
+    # Mark as subscribed in our database (user clicked subscribe link)
+    # Note: Actual Substack subscription happens in browser to avoid CloudFlare blocking
+    db.mark_subscribed(uid)
+    logger.info(f"SUBSCRIBE_INTENT: {campaign}/{uid} (email={email})")
 
 
 def handle_share_event(campaign: str, uid: str, platform: str):

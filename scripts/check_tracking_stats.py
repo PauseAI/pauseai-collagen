@@ -51,10 +51,21 @@ def main():
 
         collages = [dict(c) for c in cursor.fetchall()]
 
+        # Get share activity
+        cursor = conn.execute('''
+            SELECT platform, shared_at
+            FROM shares
+            WHERE uid = ?
+            ORDER BY shared_at
+        ''', (user['uid'],))
+
+        shares = [dict(s) for s in cursor.fetchall()]
+
         # Build complete user record
         user_data = {
             'user': dict(user),
-            'collages': collages
+            'collages': collages,
+            'shares': shares
         }
 
         import json
@@ -69,11 +80,33 @@ def main():
     print(f"Opened:       {stats['opened']}")
     print(f"Validated:    {stats['validated']}")
     print(f"Subscribed:   {stats['subscribed']}")
+
+    # Connect to database for additional queries
+    import sqlite3
+    conn = sqlite3.connect(db.db_path)
+
+    # Get share stats
+    cursor = conn.execute('SELECT COUNT(DISTINCT uid) as users, COUNT(*) as total FROM shares')
+    shares = cursor.fetchone()
+    if shares[1] > 0:
+        print(f"Shared:       {shares[0]} users ({shares[1]} total shares)")
+
+        # Breakdown by platform
+        cursor = conn.execute('''
+            SELECT platform, COUNT(*) as count
+            FROM shares
+            GROUP BY platform
+            ORDER BY count DESC
+        ''')
+        platform_counts = cursor.fetchall()
+        for platform, count in platform_counts:
+            print(f"  - {platform}: {count}")
+    else:
+        print(f"Shared:       0")
+
     print()
 
     # Check for duplicate emails (should always be unique)
-    import sqlite3
-    conn = sqlite3.connect(db.db_path)
 
     cursor = conn.execute('''
         SELECT email, COUNT(*) as count
