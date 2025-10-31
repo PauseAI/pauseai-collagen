@@ -22,12 +22,6 @@ S3_BUCKET = os.environ.get('S3_BUCKET', 'pauseai-collagen')
 
 # Social share configuration
 SHARE_CONFIG = {
-    'test_prototype': {
-        'share_url_base': 'https://pauseai.info/sayno',
-        'share_title': 'Test me in calling for a pause on superintelligence development',
-        'hashtags': 'AISafety,PauseAI',
-        'twitter_via': 'PauseAI'
-    },
     'sayno': {
         'share_url_base': 'https://pauseai.info/sayno',
         'share_title': 'Join me in calling for a pause on superintelligence development',
@@ -179,6 +173,9 @@ def lambda_handler(event, context):
     campaign = parsed['campaign']
     uid = parsed['uid']
 
+    # Map test_prototype to sayno for website display (dev convention)
+    display_campaign = 'sayno' if campaign == 'test_prototype' else campaign
+
     # Enqueue to SQS (async tracking)
     try:
         enqueue_tracking_event(path)
@@ -194,15 +191,10 @@ def lambda_handler(event, context):
         redirect_url = f"https://s3.amazonaws.com/{S3_BUCKET}/{campaign}/{build_id}/1024.jpg"
 
     elif event_type == 'validate':
-        # Map test_prototype to sayno for website display (dev convention)
-        display_campaign = 'sayno' if campaign == 'test_prototype' else campaign
         redirect_url = f"https://pauseai.info/{display_campaign}?collagen_uid_{display_campaign}={uid}"
 
     elif event_type == 'subscribe':
-        # Map test_prototype to sayno for website display (dev convention)
-        display_campaign = 'sayno' if campaign == 'test_prototype' else campaign
         email = (event.get('queryStringParameters') or {}).get('email', '')
-
         # Redirect to join page with UID and email
         redirect_url = f"https://pauseai.info/join?collagen_uid_{display_campaign}={uid}&subscribe-email={quote(email)}"
 
@@ -216,10 +208,10 @@ def lambda_handler(event, context):
                 'body': json.dumps({'error': 'Invalid platform'})
             }
 
-        # Get campaign config
-        config = SHARE_CONFIG.get(campaign)
+        # Get campaign config (using display_campaign for lookup)
+        config = SHARE_CONFIG.get(display_campaign)
         if not config:
-            print(f"ERROR: Invalid campaign: {campaign}")
+            print(f"ERROR: Invalid campaign: {display_campaign}")
             return {
                 'statusCode': 400,
                 'body': json.dumps({'error': 'Invalid campaign'})

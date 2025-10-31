@@ -46,69 +46,109 @@ def generate_tracking_urls(campaign: str, uid: str, email: str, build_id: str) -
     return urls
 
 
-def generate_plain_text(urls: Dict[str, str], subject: Optional[str] = None) -> str:
+def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None, is_bootstrap_user: bool = False) -> Dict[str, str]:
     """
-    Generate plain text email body.
+    Generate complete email (subject, plain text, HTML) for a user.
 
     Args:
-        urls: Dict of tracking URLs from generate_tracking_urls()
-        subject: Optional email subject (for header)
-
-    Returns:
-        Plain text email body
-    """
-    text = f"""Hi there!
-
-Thanks for adding your face to our petition to stop the race to build superintelligent AI.
-
-You are now in the collage:
-{urls['image']}
-
-Our website hosts an updating version at:
-{CAMPAIGN_PAGE}
-
-Please share this with your networks and encourage others to participate. Every new voice of concern matters!
-
-We would love you to:
-→ Verify your email and sign up for our newsletter and more ways to help:
-  {urls['subscribe']}
-
-OR
-
-→ Just verify your email (we won't use it to reach out again):
-  {urls['validate']}
-
-Share on social media:
-→ Facebook: {urls['share_facebook']}
-→ Twitter/X: {urls['share_twitter']}
-→ WhatsApp: {urls['share_whatsapp']}
-→ LinkedIn: {urls['share_linkedin']}
-→ Reddit: {urls['share_reddit']}
-
-As the petition grows, we'll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.
-
-Every step you take to help increase the number of photos in the petition increases its impact. Thank you for contributing - by taking action together we can stop the race.
-
-The PauseAI Team
-
----
-This is the single automated notification we promised when you submitted your photo.
-"""
-    return text.strip()
-
-
-def generate_html(urls: Dict[str, str], subject: Optional[str] = None, is_bootstrap_user: bool = False) -> str:
-    """
-    Generate HTML email body.
-
-    Args:
-        urls: Dict of tracking URLs from generate_tracking_urls()
-        subject: Optional email subject (for header)
+        campaign: Campaign name
+        uid: User UID
+        email: User's email address
+        build_id: Collage build ID
+        subject: Optional custom subject line
         is_bootstrap_user: If True, add note about previous bootstrap email
 
     Returns:
-        HTML email body
+        Dict with keys: subject, plain, html
     """
+    if subject is None:
+        subject = "You're now in the Say No collage! 📸"
+
+    urls = generate_tracking_urls(campaign, uid, email, build_id)
+    text_parts = []
+    html_parts = []
+
+    # Greeting
+    text_parts.append("Hi there!")
+    html_parts.append("<p>Hi there!</p>")
+
+    # Thanks
+    text_parts.append("Thanks for adding your face to our petition to stop the race to build superintelligent AI.")
+    html_parts.append("<p>Thanks for adding your face to our petition to stop the race to build superintelligent AI.</p>")
+
+    # Collage announcement
+    text_parts.append(f"You are now in the collage:\n{urls['image']}")
+    html_parts.append(f'<p><strong>You are now in the collage:</strong></p>')
+    html_parts.append(f'<p><img src="{urls["image"]}" alt="Say No collage featuring your photo" class="collage-image"></p>')
+
+    # Share encouragement
+    text_parts.append("Please share this with your networks and encourage others to participate. Every new voice of concern matters!")
+    html_parts.append("<p>Please share this with your networks and encourage others to participate. <strong>Every new voice of concern matters!</strong></p>")
+
+    # Subscribe/verify options
+    text_parts.append("""We would love you to:
+
+✓ Verify your email and sign up for our newsletter and more ways to help:
+  {subscribe}
+
+or
+
+Just verify your email (we won't use it to reach out again):
+  {validate}""".format(**urls))
+
+    html_parts.append(f"""<p>We would love you to:</p>
+
+    <p>
+        <a href="{urls['subscribe']}" class="cta-primary">✓ Verify your email and sign up for our newsletter and more ways to help</a>
+    </p>
+
+    <p style="text-align: center; margin: 20px 0;">or</p>
+
+    <p>
+        <a href="{urls['validate']}" class="cta-secondary">Just verify your email (we won't use it to reach out again)</a>
+    </p>""")
+
+    # Social sharing
+    text_parts.append("""Share on social media:
+📘 Facebook: {share_facebook}
+🐦 Twitter/X: {share_twitter}
+💬 WhatsApp: {share_whatsapp}
+💼 LinkedIn: {share_linkedin}
+🔗 Reddit: {share_reddit}""".format(**urls))
+
+    html_parts.append(f"""<div class="social-buttons">
+        <p><strong>Share on social media:</strong></p>
+        <a href="{urls['share_facebook']}" class="social-button">📘 Facebook</a>
+        <a href="{urls['share_twitter']}" class="social-button">🐦 Twitter/X</a>
+        <a href="{urls['share_whatsapp']}" class="social-button">💬 WhatsApp</a>
+        <a href="{urls['share_linkedin']}" class="social-button">💼 LinkedIn</a>
+        <a href="{urls['share_reddit']}" class="social-button">🔗 Reddit</a>
+    </div>""")
+
+    # Impact message
+    text_parts.append("As the petition grows, we'll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.")
+    html_parts.append('<p style="margin-top: 30px;">As the petition grows, we\'ll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.</p>')
+
+    text_parts.append("Every step you take to help increase the number of photos in the petition increases its impact. Thank you for contributing - by taking action together we can stop the race.")
+    html_parts.append("<p>Every step you take to help increase the number of photos in the petition increases its impact. Thank you for contributing - by taking action together we can stop the race.</p>")
+
+    # Signature
+    text_parts.append("The PauseAI Team")
+    html_parts.append("<p><strong>The PauseAI Team</strong></p>")
+
+    # Footer
+    footer_text = "This is the single automated notification we promised when you submitted your photo."
+    if is_bootstrap_user:
+        footer_text += " (You signed early enough you already got a placeholder email from me too: thanks again, --Anthony.)"
+
+    text_parts.append("---\n" + footer_text)
+    html_parts.append(f'<div class="footer">\n        <p>{footer_text}</p>\n    </div>')
+
+    # Assemble final content
+    plain_text = "\n\n".join(text_parts)
+
+    # Wrap HTML with template
+    html_body = "\n\n    ".join(html_parts)
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -177,74 +217,12 @@ def generate_html(urls: Dict[str, str], subject: Optional[str] = None, is_bootst
     </style>
 </head>
 <body>
-    <p>Hi there!</p>
-
-    <p>Thanks for adding your face to our petition to stop the race to build superintelligent AI.</p>
-
-    <p><strong>You are now in the collage:</strong></p>
-
-    <p><img src="{urls['image']}" alt="Say No collage featuring your photo" class="collage-image"></p>
-
-    <p>Please share this with your networks and encourage others to participate. <strong>Every new voice of concern matters!</strong></p>
-
-    <p>We would love you to:</p>
-
-    <p>
-        <a href="{urls['subscribe']}" class="cta-primary">✓ Verify your email and sign up for our newsletter and more ways to help</a>
-    </p>
-
-    <p style="text-align: center; margin: 20px 0;">or</p>
-
-    <p>
-        <a href="{urls['validate']}" class="cta-secondary">Just verify your email (we won't use it to reach out again)</a>
-    </p>
-
-    <div class="social-buttons">
-        <p><strong>Share on social media:</strong></p>
-        <a href="{urls['share_facebook']}" class="social-button">📘 Facebook</a>
-        <a href="{urls['share_twitter']}" class="social-button">🐦 Twitter/X</a>
-        <a href="{urls['share_whatsapp']}" class="social-button">💬 WhatsApp</a>
-        <a href="{urls['share_linkedin']}" class="social-button">💼 LinkedIn</a>
-        <a href="{urls['share_reddit']}" class="social-button">🔗 Reddit</a>
-    </div>
-
-    <p style="margin-top: 30px;">As the petition grows, we'll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.</p>
-
-    <p>Every step you take to help increase the number of photos in the petition increases its impact. Thank you for contributing - by taking action together we can stop the race.</p>
-
-    <p><strong>The PauseAI Team</strong></p>
-
-    <div class="footer">
-        <p>This is the single automated notification we promised when you submitted your photo.{' (You signed early enough you already got a placeholder email from me too: thanks again, --Anthony.)' if is_bootstrap_user else ''}</p>
-    </div>
+    {html_body}
 </body>
-</html>
-"""
-    return html.strip()
-
-
-def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None, is_bootstrap_user: bool = False) -> Dict[str, str]:
-    """
-    Generate complete email (subject, plain text, HTML) for a user.
-
-    Args:
-        campaign: Campaign name
-        uid: User UID
-        email: User's email address
-        build_id: Collage build ID
-        subject: Optional custom subject line
-        is_bootstrap_user: If True, add note about previous bootstrap email
-
-    Returns:
-        Dict with keys: subject, plain, html
-    """
-    if subject is None:
-        subject = "You're now in the Say No collage! 📸"
-
-    urls = generate_tracking_urls(campaign, uid, email, build_id)
+</html>"""
 
     return {
         'subject': subject,
-        'plain': generate_plain_text(urls, subject),
-        'html': generate_html(urls, subject, is_bootstrap_user)
+        'plain': plain_text,
+        'html': html
     }

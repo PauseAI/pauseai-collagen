@@ -106,15 +106,13 @@ def get_first_time_contributors(manifest: Dict, db: TrackingDB) -> List[Dict]:
     return contributors
 
 
-def send_email(recipient: str, subject: str, plain_body: str, html_body: str, dry_run: bool = False) -> bool:
+def send_email(recipient: str, email_content: Dict[str, str], dry_run: bool = False) -> bool:
     """
     Send notification email via SMTP.
 
     Args:
         recipient: Email address
-        subject: Email subject
-        plain_body: Plain text body
-        html_body: HTML body
+        email_content: Dict with keys: subject, plain, html
         dry_run: If True, log but don't actually send
 
     Returns:
@@ -122,9 +120,9 @@ def send_email(recipient: str, subject: str, plain_body: str, html_body: str, dr
     """
     if dry_run:
         logger.info(f"[DRY-RUN] Would send to {recipient}")
-        logger.debug(f"[DRY-RUN] Subject: {subject}")
-        logger.debug(f"[DRY-RUN] Plain text length: {len(plain_body)} chars")
-        logger.debug(f"[DRY-RUN] HTML length: {len(html_body)} chars")
+        logger.debug(f"[DRY-RUN] Subject: {email_content['subject']}")
+        logger.debug(f"[DRY-RUN] Plain text length: {len(email_content['plain'])} chars")
+        logger.debug(f"[DRY-RUN] HTML length: {len(email_content['html'])} chars")
         return True
 
     # Validate SMTP credentials
@@ -134,13 +132,13 @@ def send_email(recipient: str, subject: str, plain_body: str, html_body: str, dr
 
     # Create message
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject
+    msg["Subject"] = email_content['subject']
     msg["From"] = SMTP_USER
     msg["To"] = recipient
 
     # Attach both versions (email clients will prefer HTML)
-    msg.attach(MIMEText(plain_body, "plain"))
-    msg.attach(MIMEText(html_body, "html"))
+    msg.attach(MIMEText(email_content['plain'], "plain"))
+    msg.attach(MIMEText(email_content['html'], "html"))
 
     # Send email
     try:
@@ -269,14 +267,16 @@ def send_notifications(
         # Generate personalized email
         email_content = generate_email(campaign, uid, email, build_id, is_bootstrap_user=is_bootstrap)
 
+        # Show content if allowlist is being used (testing mode)
+        if allowlist_emails and dry_run:
+            print(f"\n[ALLOWLIST TEST] Email for {email}:")
+            print("=" * 60)
+            import json
+            print(json.dumps(email_content, indent=2))
+            print("=" * 60)
+
         # Send email
-        success = send_email(
-            recipient=email,
-            subject=email_content['subject'],
-            plain_body=email_content['plain'],
-            html_body=email_content['html'],
-            dry_run=dry_run
-        )
+        success = send_email(recipient=email, email_content=email_content, dry_run=dry_run)
 
         if success:
             success_count += 1

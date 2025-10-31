@@ -175,12 +175,9 @@ def main():
     print("=" * 80)
     print()
     print(f"Build directory: {build_dir}")
-    print(f"  4096.png:      {build_dir / '4096.png'}")
-    print(f"  4096.jpg:      {build_dir / '4096.jpg'}")
-    print(f"  1024.jpg:      {build_dir / '1024.jpg'}")
-    print(f"  manifest.json: {build_dir / 'manifest.json'}")
+    import subprocess
+    print(subprocess.run(["ls", "-lh", str(build_dir)], capture_output=True, text=True).stdout)
     print()
-
 
 if __name__ == "__main__":
     main()

@@ -7,14 +7,14 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Phase 3 - Social sharing + website integration in progress
+**Phase**: Production deployment complete - Phased rollout in progress
 **Branch**: main
-**Last Updated**: 2025-10-27
+**Last Updated**: 2025-10-31
 **Production Build**: 20251024T230728Z,266=19x14 (266 images, 281 tiles available)
 **Tracking Infrastructure**: Deployed and operational at collagen.pauseai.info
-**Email Sending**: SMTP configured, tested from EC2, ready for production use
-**Share Tracking**: Implemented, tested on test_prototype (#11)
-**Website Integration**: PR #521 submitted to pauseai-website
+**Email Sending**: Production emails sent to 12 users (trusted members), 233 remaining
+**Share Tracking**: Deployed to production sayno campaign, first share tracked (#11)
+**Website Integration**: Deployed to production (PR #526 merged, /join and /sayno fixes committed to main)
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -88,17 +88,24 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] Open Graph metadata with collage images for social sharing
 - [x] S3 image integration on /sayno and book pages
 - [x] Contextual messaging for email tracking links (validate/subscribe)
+- [x] **Production deployment** (2025-10-31) - #6, #7, #11
+- [x] Share tracking migration on production sayno campaign
+- [x] Email template refactored (HTML + plain text in parallel)
+- [x] Email parameter added to subscribe URLs for auto-fill
+- [x] Allowlist created for phased rollout (11 trusted PauseAI members)
+- [x] Production emails sent (12 users: 1 test + 11 trusted members)
+- [x] End-to-end tracking validated (emailed, opened, validated, subscribed, shared)
+- [x] /join page fixed for collagen users (banner + pre-fill, no auto-submit)
+- [x] /sayno validation bug fixed (added 'validated' state)
+- [x] Duplicate email detection improved in manifest generation
+- [x] First production share tracked (Tom Bibby - Twitter)
 
-### Next Steps (Phase 3 Continuation)
-- [ ] Run migration on production sayno campaign (#11)
-- [ ] Email template design (HTML + plain text, tracking URLs)
-- [ ] Email send script with dry-run mode
-- [ ] Allowlist testing with pauseai.info addresses
-- [ ] Production rollout: phased (test group → full users)
-- [ ] Email uniqueness handling at collage generation time (#8)
+### Next Steps
+- [ ] Monitor feedback from trusted members
+- [ ] Full production rollout to remaining 233 sayno users
 - [ ] UX improvements (score breakdown, custom grid live preview)
 - [ ] AWS Backup for EFS
-- [ ] Monitoring and handoff (MVP)
+- [ ] Monitoring and handoff documentation
 
 ## Tech Stack
 
@@ -405,6 +412,15 @@ uvicorn webapp.main:app --reload --port 8000
 
 # Test SMTP sending (local or EC2)
 ./tools/test_smtp.py recipient@example.com
+
+# Production tools (run on EC2)
+./tools/sqlite_exec.py sayno "SELECT uid, email FROM users WHERE email LIKE '%example%'"
+./scripts/check_tracking_stats.py sayno
+./scripts/check_tracking_stats.py sayno --email user@example.com
+./scripts/send_notifications.py sayno BUILD_ID --dry-run
+./scripts/send_notifications.py sayno BUILD_ID --uid ABC123
+./scripts/publish_collage.py sayno BUILD_ID
+./scripts/migrate_add_shares_table.py sayno
 ```
 
 **Check EFS on EC2:**
@@ -444,11 +460,12 @@ GET  /{campaign}/{build_id}/{filename}  Serve images (4096.png, 4096.jpg, 1024.j
 
 ## References
 
-- Issues: #436, #437, #488, #500 (pauseai-website), #2, #3, #5, #6, #7, #8, #9 (pauseai-collagen)
+- Issues: #436, #437, #488, #500 (pauseai-website), #2, #3, #5, #6, #7, #8, #9, #11 (pauseai-collagen)
 - Session summaries: pauseai-l10n/notes/summary/
 - Bootstrap summary: `20251001T00.sayno-bootstrap-collage-notification.summary.md`
 - Phase 2B summary: `20251013T00.phase2b-collage-webapp.summary.md`
 - Phase 3 SMTP summary: `20251025T13.smtp-setup.summary.md`
+- Production deployment summary: `20251031T14.email-tracking-validation-fixes.summary.md`
 - FastAPI docs: https://fastapi.tiangolo.com/
 - ImageMagick montage: https://imagemagick.org/script/montage.php
 - Cloudinary moderation docs: https://cloudinary.com/documentation/moderate_assets

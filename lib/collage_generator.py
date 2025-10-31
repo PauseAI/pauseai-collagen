@@ -74,34 +74,37 @@ def extract_email_from_tile(tile_path: Path) -> Optional[str]:
         return None
 
 
-def check_email_duplicates(tiles: List[Path], logger=None) -> Dict[str, int]:
+def check_email_duplicates(tiles: List[Path]) -> Optional[str]:
     """
     Check for duplicate emails across tiles.
 
     Args:
         tiles: List of tile paths
-        logger: Optional logger for warnings
 
     Returns:
-        Dict mapping email -> count (only emails with count > 1)
+        Warning string with duplicate details (including Cloudinary public_ids), or None if no duplicates
     """
-    emails = []
+    email_to_tiles = {}
 
     for tile in tiles:
         email = extract_email_from_tile(tile)
         if email:
-            emails.append(email)
+            if email not in email_to_tiles:
+                email_to_tiles[email] = []
+            email_to_tiles[email].append(tile.name)
 
     # Find duplicates
-    email_counts = Counter(emails)
-    duplicates = {email: count for email, count in email_counts.items() if count > 1}
+    duplicates = {email: tile_files for email, tile_files in email_to_tiles.items() if len(tile_files) > 1}
 
-    if duplicates and logger:
-        logger.warning(f"Found {len(duplicates)} email addresses with multiple tiles:")
-        for email, count in duplicates.items():
-            logger.warning(f"  {email}: {count} tiles")
+    if not duplicates:
+        return None
 
-    return duplicates
+    # Build warning string
+    lines = [f"Found {len(duplicates)} email addresses with multiple tiles:"]
+    for email, tile_files in duplicates.items():
+        lines.append(f"  {email}: {len(tile_files)} tiles: {tile_files}")
+
+    return '\n'.join(lines)
 
 
 def generate_renders(tiles: List[Path], renders_dir: Path, cell_width: int, cell_height: int):
@@ -249,7 +252,7 @@ def generate_derivatives(master_path: Path, output_dir: Path, collage_width: int
 
 
 def create_manifest(build_dir: Path, layout: Dict[str, Any], tiles: List[Path],
-                   n_images: int) -> Dict[str, Any]:
+                   n_images: int, duplicate_warning: Optional[str] = None) -> Dict[str, Any]:
     """
     Create manifest.json for the collage build.
 
@@ -258,6 +261,7 @@ def create_manifest(build_dir: Path, layout: Dict[str, Any], tiles: List[Path],
         layout: Layout configuration dict
         tiles: List of tile paths used
         n_images: Total images available
+        duplicate_warning: Warning string about duplicate emails (if any)
 
     Returns:
         Manifest dict
@@ -288,6 +292,7 @@ def create_manifest(build_dir: Path, layout: Dict[str, Any], tiles: List[Path],
         "tile_count": len(tiles),
         "total_available": n_images,
         "tiles": tile_jsons,
+        "warnings": duplicate_warning,  # None if no issues, otherwise warning string
         "permanent_url": None,  # Set when published
         "emails_sent": 0,
         "email_log": None
@@ -336,7 +341,10 @@ def build_collage(campaign_dir: Path, layout: Dict[str, Any], n_images: int,
         logger.info(f"Selected {len(tiles)} tiles (oldest first)")
 
     # Check for email duplicates (warning only, per issue #8)
-    duplicates = check_email_duplicates(tiles, logger=logger)
+    duplicate_warning = check_email_duplicates(tiles)
+
+    if duplicate_warning and logger:
+        logger.warning(duplicate_warning)
 
     # Generate render tiles
     if logger:
@@ -365,7 +373,7 @@ def build_collage(campaign_dir: Path, layout: Dict[str, Any], n_images: int,
     if logger:
         logger.info("Writing manifest.json")
 
-    create_manifest(build_dir, layout, tiles, len(list(tiles_dir.glob("*.png"))))
+    create_manifest(build_dir, layout, tiles, len(list(tiles_dir.glob("*.png"))), duplicate_warning)
 
     if logger:
         logger.info(f"✅ Collage built: {build_dir}")
