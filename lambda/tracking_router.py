@@ -201,8 +201,10 @@ def lambda_handler(event, context):
     elif event_type == 'subscribe':
         # Map test_prototype to sayno for website display (dev convention)
         display_campaign = 'sayno' if campaign == 'test_prototype' else campaign
-        # Redirect to join page with display campaign in UID parameter
-        redirect_url = f"https://pauseai.info/join?collagen_uid_{display_campaign}={uid}"
+        email = (event.get('queryStringParameters') or {}).get('email', '')
+
+        # Redirect to join page with UID and email
+        redirect_url = f"https://pauseai.info/join?collagen_uid_{display_campaign}={uid}&subscribe-email={quote(email)}"
 
     elif event_type == 'share':
         # Validate platform

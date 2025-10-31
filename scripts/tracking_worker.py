@@ -33,7 +33,7 @@ MAX_MESSAGES = 10  # per poll
 S3_BUCKET = "pauseai-collagen"
 
 # Substack configuration
-SUBSTACK_SUBSCRIBE_URL = "https://pauseai.substack.com/subscribe"
+SUBSTACK_SUBSCRIBE_URL = "https://pauseai.substack.com/api/v1/free"
 
 # Data directory
 DATA_DIR = os.environ.get("COLLAGEN_DATA_DIR", "/mnt/efs")
@@ -138,7 +138,7 @@ def handle_validate_event(campaign: str, uid: str):
 def handle_subscribe_event(campaign: str, uid: str):
     """
     Handle subscription event.
-    Validates user and triggers Substack subscription.
+    Validates user and subscribes them to Substack newsletter.
     """
     db = TrackingDB(campaign, DATA_DIR)
     user = db.get_user_by_uid(uid)
@@ -152,9 +152,18 @@ def handle_subscribe_event(campaign: str, uid: str):
         email = user['email']
         logger.info(f"SUBSCRIBED: {campaign}/{uid} (email={email})")
 
-        # Note: Actual Substack subscription happens client-side via redirect
-        # This just records the user's intent in tracking.db
-        # The /join page redirects to Substack with pre-filled email
+        # Subscribe to Substack newsletter via API
+        try:
+            response = requests.post(
+                SUBSTACK_SUBSCRIBE_URL,
+                json={"email": email},
+                timeout=10
+            )
+            response.raise_for_status()
+            logger.info(f"SUBSTACK: Subscribed {email} successfully")
+        except requests.RequestException as e:
+            logger.error(f"SUBSTACK: Failed to subscribe {email}: {e}")
+            # Don't fail the tracking update - user intent is recorded
     else:
         logger.debug(f"SUBSCRIBED (duplicate): {campaign}/{uid}")
 
