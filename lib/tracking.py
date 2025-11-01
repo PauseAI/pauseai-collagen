@@ -135,13 +135,20 @@ class TrackingDB:
             )
             return cursor.rowcount > 0
 
-    def mark_opened(self, uid: str) -> bool:
+    def mark_opened(self, uid: str, event_time: Optional[datetime] = None) -> bool:
         """
         Mark user as opened (tracking pixel loaded).
+
+        Args:
+            uid: User UID
+            event_time: When event occurred (defaults to now). Use SQS message timestamp for accuracy.
 
         Returns:
             True if updated, False if already set (idempotent)
         """
+        event_ts = event_time.isoformat() if event_time else now_iso()
+        updated_ts = now_iso()  # Metadata: when record was actually updated
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 """
@@ -149,17 +156,24 @@ class TrackingDB:
                 SET opened_at = ?, updated_at = ?
                 WHERE uid = ? AND opened_at IS NULL
                 """,
-                (now_iso(), now_iso(), uid)
+                (event_ts, updated_ts, uid)
             )
             return cursor.rowcount > 0
 
-    def mark_validated(self, uid: str) -> bool:
+    def mark_validated(self, uid: str, event_time: Optional[datetime] = None) -> bool:
         """
         Mark user as validated (clicked validate link).
+
+        Args:
+            uid: User UID
+            event_time: When event occurred (defaults to now). Use SQS message timestamp for accuracy.
 
         Returns:
             True if updated, False if already set (idempotent)
         """
+        event_ts = event_time.isoformat() if event_time else now_iso()
+        updated_ts = now_iso()  # Metadata: when record was actually updated
+
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
                 """
@@ -167,19 +181,24 @@ class TrackingDB:
                 SET validated_at = ?, updated_at = ?
                 WHERE uid = ? AND validated_at IS NULL
                 """,
-                (now_iso(), now_iso(), uid)
+                (event_ts, updated_ts, uid)
             )
             return cursor.rowcount > 0
 
-    def mark_subscribed(self, uid: str) -> bool:
+    def mark_subscribed(self, uid: str, event_time: Optional[datetime] = None) -> bool:
         """
         Mark user as subscribed (clicked subscribe link).
         Also marks as validated.
 
+        Args:
+            uid: User UID
+            event_time: When event occurred (defaults to now). Use SQS message timestamp for accuracy.
+
         Returns:
             True if updated, False if already set (idempotent)
         """
-        timestamp = now_iso()
+        event_ts = event_time.isoformat() if event_time else now_iso()
+        updated_ts = now_iso()  # Metadata: when record was actually updated
 
         with sqlite3.connect(self.db_path) as conn:
             cursor = conn.execute(
@@ -190,11 +209,11 @@ class TrackingDB:
                     updated_at = ?
                 WHERE uid = ? AND subscribed_at IS NULL
                 """,
-                (timestamp, timestamp, timestamp, uid)
+                (event_ts, event_ts, updated_ts, uid)
             )
             return cursor.rowcount > 0
 
-    def record_share(self, uid: str, platform: str):
+    def record_share(self, uid: str, platform: str, event_time: Optional[datetime] = None):
         """
         Record a social share intent event.
         Tracks when user clicked share link and was redirected to social platform.
@@ -204,27 +223,28 @@ class TrackingDB:
         Args:
             uid: User UID
             platform: Platform name ('facebook', 'twitter', 'whatsapp', 'linkedin', 'reddit')
+            event_time: When event occurred (defaults to now). Use SQS message timestamp for accuracy.
         """
-        timestamp = now_iso()
+        event_ts = event_time.isoformat() if event_time else now_iso()
 
         with sqlite3.connect(self.db_path) as conn:
-            # Insert share record
+            # Insert share record (no metadata fields, just event timestamp)
             conn.execute(
                 """
                 INSERT INTO shares (uid, platform, shared_at)
                 VALUES (?, ?, ?)
                 """,
-                (uid, platform, timestamp)
+                (uid, platform, event_ts)
             )
 
-            # Update user's updated_at timestamp
+            # Update user's updated_at metadata (real clock, not event time)
             conn.execute(
                 """
                 UPDATE users
                 SET updated_at = ?
                 WHERE uid = ?
                 """,
-                (timestamp, uid)
+                (now_iso(), uid)
             )
 
     def get_user_collages(self, uid: str) -> list[dict]:

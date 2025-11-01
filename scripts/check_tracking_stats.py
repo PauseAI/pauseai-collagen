@@ -85,22 +85,25 @@ def main():
     import sqlite3
     conn = sqlite3.connect(db.db_path)
 
-    # Get share stats
-    cursor = conn.execute('SELECT COUNT(DISTINCT uid) as users, COUNT(*) as total FROM shares')
+    # Get share stats - show unique user+platform combinations
+    cursor = conn.execute('SELECT COUNT(DISTINCT uid || "-" || platform) as unique_shares, COUNT(*) as total FROM shares')
     shares = cursor.fetchone()
     if shares[1] > 0:
-        print(f"Shared:       {shares[0]} users ({shares[1]} total shares)")
+        # Show unique users who shared
+        cursor = conn.execute('SELECT COUNT(DISTINCT uid) FROM shares')
+        unique_users = cursor.fetchone()[0]
+        print(f"Shared:       {unique_users} users, {shares[0]} unique user+platform combinations ({shares[1]} total clicks)")
 
-        # Breakdown by platform
+        # Breakdown by platform (show unique users per platform + total clicks)
         cursor = conn.execute('''
-            SELECT platform, COUNT(*) as count
+            SELECT platform, COUNT(DISTINCT uid) as users, COUNT(*) as clicks
             FROM shares
             GROUP BY platform
-            ORDER BY count DESC
+            ORDER BY users DESC, clicks DESC
         ''')
         platform_counts = cursor.fetchall()
-        for platform, count in platform_counts:
-            print(f"  - {platform}: {count}")
+        for platform, users, clicks in platform_counts:
+            print(f"  - {platform}: {users} users ({clicks} clicks)")
     else:
         print(f"Shared:       0")
 
