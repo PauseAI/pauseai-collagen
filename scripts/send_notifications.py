@@ -226,6 +226,12 @@ def send_notifications(
         logger.error("Fix the issues above, rebuild the collage, then retry email send")
         sys.exit(1)
 
+    # Check if collage is published
+    if not manifest.get('published_at'):
+        logger.error(f"CANNOT SEND EMAILS - Collage {build_id} is not published yet")
+        logger.error(f"Run: ./scripts/publish_collage.py {campaign} {build_id}")
+        sys.exit(1)
+
     # Initialize tracking DB
     db = TrackingDB(campaign, DATA_DIR)
 
