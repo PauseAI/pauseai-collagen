@@ -6,6 +6,24 @@ with personalized tracking URLs.
 """
 
 from typing import Dict, Optional
+from experiments import X001_CTAS_ABOVE_COLLAGE
+
+
+def get_email_variant(email: str) -> str:
+    """
+    Determine A/B test variant for email template.
+
+    Currently running experiment: X001 - CTAs above collage
+    - Control: Traditional layout (collage image first, verbose CTAs)
+    - Treatment: Streamlined (CTAs first, collage at end, simpler language)
+
+    Args:
+        email: User's email address
+
+    Returns:
+        Variant name ("control" or "treatment")
+    """
+    return X001_CTAS_ABOVE_COLLAGE.get_variant(email)
 
 
 # Tracking URL base (production)
@@ -46,7 +64,7 @@ def generate_tracking_urls(campaign: str, uid: str, email: str, build_id: str) -
     return urls
 
 
-def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None, is_bootstrap_user: bool = False) -> Dict[str, str]:
+def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None, is_bootstrap_user: bool = False, variant: str = "control") -> Dict[str, str]:
     """
     Generate complete email (subject, plain text, HTML) for a user.
 
@@ -57,6 +75,7 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
         build_id: Collage build ID
         subject: Optional custom subject line
         is_bootstrap_user: If True, add note about previous bootstrap email
+        variant: Email variant ("control" or "treatment")
 
     Returns:
         Dict with keys: subject, plain, html
@@ -68,25 +87,48 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
     text_parts = []
     html_parts = []
 
-    # Greeting
+    # === GREETING + THANKS (both variants) ===
     text_parts.append("Hi there!")
     html_parts.append("<p>Hi there!</p>")
 
-    # Thanks
-    text_parts.append("Thanks for adding your face to our petition to stop the race to build superintelligent AI.")
-    html_parts.append("<p>Thanks for adding your face to our petition to stop the race to build superintelligent AI.</p>")
+    if variant == "treatment":
+        # Treatment: collage announcement at end of intro
+        text_parts.append("Thanks for adding your face to our petition to stop the race to build superintelligent AI. You are now in a published collage.")
+        html_parts.append("<p>Thanks for adding your face to our petition to stop the race to build superintelligent AI. You are now in a published collage.</p>")
+    else:
+        # Control: separate paragraphs
+        text_parts.append("Thanks for adding your face to our petition to stop the race to build superintelligent AI.")
+        html_parts.append("<p>Thanks for adding your face to our petition to stop the race to build superintelligent AI.</p>")
 
-    # Collage announcement
-    text_parts.append(f"You are now in the collage:\n{urls['image']}")
-    html_parts.append(f'<p><strong>You are now in the collage:</strong></p>')
-    html_parts.append(f'<p><img src="{urls["image"]}" alt="Say No collage featuring your photo" class="collage-image"></p>')
+    # === COLLAGE ANNOUNCEMENT (control only - with image) ===
+    if variant == "control":
+        text_parts.append(f"You are now in the collage:\n{urls['image']}")
+        html_parts.append(f'<p><strong>You are now in the collage:</strong></p>')
+        html_parts.append(f'<p><img src="{urls["image"]}" alt="Say No collage featuring your photo" class="collage-image"></p>')
 
-    # Share encouragement
-    text_parts.append("Please share this with your networks and encourage others to participate. Every new voice of concern matters!")
-    html_parts.append("<p>Please share this with your networks and encourage others to participate. <strong>Every new voice of concern matters!</strong></p>")
+    # === SHARE ENCOURAGEMENT (control only, before CTAs) ===
+    if variant == "control":
+        text_parts.append("Please share this with your networks and encourage others to participate. Every new voice of concern matters!")
+        html_parts.append("<p>Please share this with your networks and encourage others to participate. <strong>Every new voice of concern matters!</strong></p>")
 
-    # Subscribe/verify options
-    text_parts.append("""We would love you to:
+    # === CTA BUTTONS (different styling per variant) ===
+    if variant == "treatment":
+        text_parts.append("""Please choose one of these:
+
+✓ Keep me informed about ways to help further:
+  {subscribe}
+
+No more contact: Just validate that I signed:
+  {validate}""".format(**urls))
+
+        html_parts.append(f"""<p><strong>Please choose one of these:</strong></p>
+    <div class="cta-buttons">
+        <a href="{urls['subscribe']}" class="cta-primary">✓ Keep me informed about ways to help further</a>
+        <a href="{urls['validate']}" class="cta-secondary">No more contact: Just validate that I signed</a>
+    </div>""")
+    else:
+        # Control: vertical layout with "or" separator
+        text_parts.append("""We would love you to:
 
 ✓ Verify your email and sign up for our newsletter and more ways to help:
   {subscribe}
@@ -96,7 +138,7 @@ or
 Just verify your email (we won't use it to reach out again):
   {validate}""".format(**urls))
 
-    html_parts.append(f"""<p>We would love you to:</p>
+        html_parts.append(f"""<p>We would love you to:</p>
 
     <p>
         <a href="{urls['subscribe']}" class="cta-primary">✓ Verify your email and sign up for our newsletter and more ways to help</a>
@@ -108,24 +150,37 @@ Just verify your email (we won't use it to reach out again):
         <a href="{urls['validate']}" class="cta-secondary">Just verify your email (we won't use it to reach out again)</a>
     </p>""")
 
-    # Social sharing
-    text_parts.append("""Share on social media:
+    # === SOCIAL SHARING ===
+    share_text = """Share on social media:
 📘 Facebook: {share_facebook}
 🐦 Twitter/X: {share_twitter}
 💬 WhatsApp: {share_whatsapp}
 💼 LinkedIn: {share_linkedin}
-🔗 Reddit: {share_reddit}""".format(**urls))
+🔗 Reddit: {share_reddit}""".format(**urls)
 
-    html_parts.append(f"""<div class="social-buttons">
-        <p><strong>Share on social media:</strong></p>
+    share_html = f"""<div class="social-buttons">
+        <p><strong>Share {"this with your networks" if variant == "treatment" else "on social media"}:</strong></p>
         <a href="{urls['share_facebook']}" class="social-button">📘 Facebook</a>
         <a href="{urls['share_twitter']}" class="social-button">🐦 Twitter/X</a>
         <a href="{urls['share_whatsapp']}" class="social-button">💬 WhatsApp</a>
         <a href="{urls['share_linkedin']}" class="social-button">💼 LinkedIn</a>
         <a href="{urls['share_reddit']}" class="social-button">🔗 Reddit</a>
-    </div>""")
+    </div>"""
 
-    # Impact message
+    text_parts.append(share_text)
+    html_parts.append(share_html)
+
+    # === EXPLANATION (treatment only) ===
+    if variant == "treatment":
+        text_parts.append("About these options: 'Keep me informed' marks you as open to updates about the collage and takes you to our newsletter signup. Validation alone is also valuable - it's a standard petition step that helps us demonstrate legitimacy.")
+        html_parts.append('<p class="explanation">About these options: "Keep me informed" marks you as open to updates about the collage and takes you to our newsletter signup. Validation alone is also valuable - it\'s a standard petition step that helps us demonstrate legitimacy.</p>')
+
+    # === COLLAGE IMAGE (treatment only - moved down) ===
+    if variant == "treatment":
+        text_parts.append(f"Here's the collage:\n{urls['image']}")
+        html_parts.append(f'<p><img src="{urls["image"]}" alt="Say No collage featuring your photo" class="collage-image"></p>')
+
+    # === IMPACT MESSAGE (both variants) ===
     text_parts.append("As the petition grows, we'll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.")
     html_parts.append('<p style="margin-top: 30px;">As the petition grows, we\'ll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.</p>')
 
@@ -190,6 +245,23 @@ Just verify your email (we won't use it to reach out again):
             color: white !important;
             text-decoration: none;
             border-radius: 6px;
+        }}
+        .cta-buttons {{
+            display: flex;
+            flex-wrap: wrap;
+            margin: 20px 0;
+        }}
+        .cta-buttons a {{
+            flex: 1 1 160px;
+            text-align: center;
+            padding: 10px 12px;
+            margin: 5px;
+        }}
+        .explanation {{
+            font-size: 14px;
+            color: #666;
+            margin: 20px 0;
+            line-height: 1.5;
         }}
         .social-buttons {{
             margin: 20px 0;

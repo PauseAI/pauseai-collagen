@@ -13,10 +13,128 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from tracking import TrackingDB
 
 
+def report_experiment_breakdown(conn, experiment, sample_file):
+    """
+    Report A/B test breakdown for an experiment.
+
+    Args:
+        conn: SQLite connection
+        experiment: Experiment object
+        sample_file: Path to ab_test_sample.txt file
+    """
+    from experiments import get_experiment
+
+    with open(sample_file) as f:
+        ab_sample_emails = {line.strip().lower() for line in f if line.strip()}
+
+    print()
+    print(f"=== A/B Test Breakdown: {experiment.name} ({len(ab_sample_emails)} sample users) ===")
+
+    variant_stats = {
+        'control': {'emailed': 0, 'opened': 0, 'validated': 0, 'subscribed': 0, 'shared': 0, 'share_uids': set()},
+        'treatment': {'emailed': 0, 'opened': 0, 'validated': 0, 'subscribed': 0, 'shared': 0, 'share_uids': set()}
+    }
+
+    for sample_email in ab_sample_emails:
+        cursor = conn.execute(
+            'SELECT uid, emailed_at, opened_at, validated_at, subscribed_at FROM users WHERE email = ?',
+            (sample_email,)
+        )
+        user = cursor.fetchone()
+        if not user:
+            continue
+
+        uid, emailed_at, opened_at, validated_at, subscribed_at = user
+        variant = experiment.get_variant(sample_email)
+
+        if emailed_at:
+            variant_stats[variant]['emailed'] += 1
+        if opened_at:
+            variant_stats[variant]['opened'] += 1
+        if validated_at:
+            variant_stats[variant]['validated'] += 1
+        if subscribed_at:
+            variant_stats[variant]['subscribed'] += 1
+
+        # Check if user shared on any platform
+        share_cursor = conn.execute(
+            'SELECT COUNT(DISTINCT platform) FROM shares WHERE uid = ?',
+            (uid,)
+        )
+        share_count = share_cursor.fetchone()[0]
+        if share_count > 0:
+            variant_stats[variant]['shared'] += 1
+            variant_stats[variant]['share_uids'].add(uid)
+
+    for variant in ['control', 'treatment']:
+        v = variant_stats[variant]
+        print(f"\n{variant.upper()} (email starts with {'consonant' if variant == 'control' else 'vowel'}):")
+        print(f"  Emailed:    {v['emailed']}")
+        print(f"  Opened:     {v['opened']}")
+
+        # Calculate rates (relative to opened, since that's when they can act)
+        if v['opened'] > 0:
+            validated_rate = 100.0 * v['validated'] / v['opened']
+            subscribed_rate = 100.0 * v['subscribed'] / v['opened']
+            shared_rate = 100.0 * v['shared'] / v['opened']
+
+            print(f"  Validated:  {v['validated']} ({validated_rate:.1f}% of opened)")
+            print(f"  Subscribed: {v['subscribed']} ({subscribed_rate:.1f}% of opened)")
+            print(f"  Shared:     {v['shared']} ({shared_rate:.1f}% of opened)")
+        else:
+            print(f"  Validated:  {v['validated']}")
+            print(f"  Subscribed: {v['subscribed']}")
+            print(f"  Shared:     {v['shared']}")
+
+    # Summary comparison
+    c = variant_stats['control']
+    t = variant_stats['treatment']
+
+    print(f"\n=== A/B Test Summary ===")
+    if c['opened'] > 0 and t['opened'] > 0:
+        c_share_rate = 100.0 * c['shared'] / c['opened']
+        t_share_rate = 100.0 * t['shared'] / t['opened']
+
+        print(f"Share rate comparison:")
+        print(f"  Control:   {c_share_rate:.1f}% ({c['shared']}/{c['opened']})")
+        print(f"  Treatment: {t_share_rate:.1f}% ({t['shared']}/{t['opened']})")
+
+        if t_share_rate > c_share_rate:
+            lift = t_share_rate - c_share_rate
+            print(f"  → Treatment +{lift:.1f}pp higher share rate")
+        elif c_share_rate > t_share_rate:
+            drop = c_share_rate - t_share_rate
+            print(f"  → Treatment -{drop:.1f}pp lower share rate")
+        else:
+            print(f"  → No difference")
+
+    # Platform diversity (average platforms per sharer)
+    if c['shared'] > 0 or t['shared'] > 0:
+        print(f"\nPlatform diversity (avg platforms per sharer):")
+
+        for variant in ['control', 'treatment']:
+            v = variant_stats[variant]
+            if v['shared'] > 0:
+                # Get total platform count for these users
+                uid_list = ','.join(f"'{uid}'" for uid in v['share_uids'])
+                platform_cursor = conn.execute(
+                    f'SELECT COUNT(DISTINCT platform) FROM shares WHERE uid IN ({uid_list})'
+                )
+                total_platforms = platform_cursor.fetchone()[0]
+                avg_platforms = total_platforms / v['shared']
+                print(f"  {variant.capitalize()}: {avg_platforms:.1f} platforms/user ({total_platforms} total platforms, {v['shared']} users)")
+            else:
+                print(f"  {variant.capitalize()}: N/A (no shares)")
+
+
 def main():
     parser = argparse.ArgumentParser(description="Check tracking database stats")
     parser.add_argument("campaign", help="Campaign name (e.g. test_prototype, sayno)")
     parser.add_argument("--email", help="Show detailed info for a specific email address")
+    parser.add_argument(
+        "--experiment",
+        help="Show A/B test breakdown for experiment (number like '1' or ID like 'X001_CTAS_ABOVE_COLLAGE')"
+    )
     parser.add_argument(
         "--data-dir",
         default=os.environ.get("COLLAGEN_DATA_DIR", "/mnt/efs"),
@@ -84,6 +202,26 @@ def main():
     # Connect to database for additional queries
     import sqlite3
     conn = sqlite3.connect(db.db_path)
+
+    # A/B test breakdown (only if --experiment specified)
+    if args.experiment:
+        from experiments import get_experiment
+
+        try:
+            experiment = get_experiment(args.experiment)
+            sample_file = experiment.get_sample_path(Path(__file__).parent)
+
+            if not sample_file.exists():
+                print()
+                print(f"⚠️  Warning: Experiment sample file not found: {sample_file}")
+                print(f"   Run ./scripts/select_ab_test_sample.py {args.campaign} --experiment {args.experiment}")
+            else:
+                report_experiment_breakdown(conn, experiment, sample_file)
+        except ValueError as e:
+            print()
+            print(f"Error: {e}")
+
+    print()
 
     # Get share stats - show unique user+platform combinations
     cursor = conn.execute('SELECT COUNT(DISTINCT uid || "-" || platform) as unique_shares, COUNT(*) as total FROM shares')
