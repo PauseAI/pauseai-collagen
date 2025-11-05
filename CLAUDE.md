@@ -7,14 +7,15 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 
 ## Current Status
 
-**Phase**: Production deployment complete - Phased rollout in progress
+**Phase**: Production deployment complete - Active A/B testing
 **Branch**: main
-**Last Updated**: 2025-10-31
+**Last Updated**: 2025-11-05
 **Production Build**: 20251024T230728Z,266=19x14 (266 images, 281 tiles available)
 **Tracking Infrastructure**: Deployed and operational at collagen.pauseai.info
-**Email Sending**: Production emails sent to 12 users (trusted members), 233 remaining
-**Share Tracking**: Deployed to production sayno campaign, first share tracked (#11)
-**Website Integration**: Deployed to production (PR #526 merged, /join and /sayno fixes committed to main)
+**Email Sending**: 95 users emailed (12 trusted + 40 X001 + 40 X002 + 3 others), 150 remaining
+**Share Tracking**: Deployed and operational (10 unique sharers, 24 user+platform combinations)
+**Website Integration**: Deployed to production (PR #526 merged, PR #536 pending for share page)
+**Active Experiments**: X002 (Post-action sharing, 20v20, launched 2025-11-05)
 
 ### Completed
 - [x] Architecture planning (see ORIGINAL_PROJECT_PLAN.md)
@@ -99,10 +100,16 @@ Named "collagen" to support multiple future campaigns beyond "sayno".
 - [x] /sayno validation bug fixed (added 'validated' state)
 - [x] Duplicate email detection improved in manifest generation
 - [x] First production share tracked (Tom Bibby - Twitter)
+- [x] **X001 Experiment** (2025-11-05) - CTA positioning A/B test
+- [x] Treatment variant launched as default (streamlined layout won on all metrics)
+- [x] **X002 Experiment** (2025-11-05) - Post-action sharing A/B test
+- [x] X002 launched to 40 users (20v20, control hides sharing via x002 parameter)
+- [x] Website share page (pauseai-website PR #536 - ShareButtons component)
 
 ### Next Steps
-- [ ] Monitor feedback from trusted members
-- [ ] Full production rollout to remaining 233 sayno users
+- [ ] Monitor X002 results (share rates, validation, subscription)
+- [ ] Merge pauseai-website PR #536 (share page integration)
+- [ ] Full production rollout to remaining 150 sayno users
 - [ ] UX improvements (score breakdown, custom grid live preview)
 - [ ] AWS Backup for EFS
 - [ ] Monitoring and handoff documentation
