@@ -6,24 +6,25 @@ with personalized tracking URLs.
 """
 
 from typing import Dict, Optional
-from experiments import X001_CTAS_ABOVE_COLLAGE
 
 
 def get_email_variant(email: str) -> str:
     """
-    Determine A/B test variant for email template.
+    Determine email template variant.
 
-    Currently running experiment: X001 - CTAs above collage
-    - Control: Traditional layout (collage image first, verbose CTAs)
-    - Treatment: Streamlined (CTAs first, collage at end, simpler language)
+    X001 experiment concluded - launched winning variant as default for all users.
+    Current default: Streamlined layout (CTAs first, collage at end, simpler language)
+
+    Historical: X001 tested streamlined layout (treatment) vs traditional layout (control).
+    Streamlined won on all metrics: validation +17.6pp, subscription +11.4pp.
 
     Args:
-        email: User's email address
+        email: User's email address (unused, kept for API compatibility)
 
     Returns:
-        Variant name ("control" or "treatment")
+        Always "control" (semantically: the default/baseline behavior)
     """
-    return X001_CTAS_ABOVE_COLLAGE.get_variant(email)
+    return "control"
 
 
 # Tracking URL base (production)
@@ -64,9 +65,11 @@ def generate_tracking_urls(campaign: str, uid: str, email: str, build_id: str) -
     return urls
 
 
-def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None, is_bootstrap_user: bool = False, variant: str = "control") -> Dict[str, str]:
+def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None, is_bootstrap_user: bool = False) -> Dict[str, str]:
     """
     Generate complete email (subject, plain text, HTML) for a user.
+
+    Uses streamlined layout (X001 experiment winner): CTAs first, collage at end, simpler language.
 
     Args:
         campaign: Campaign name
@@ -75,7 +78,6 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
         build_id: Collage build ID
         subject: Optional custom subject line
         is_bootstrap_user: If True, add note about previous bootstrap email
-        variant: Email variant ("control" or "treatment")
 
     Returns:
         Dict with keys: subject, plain, html
@@ -87,33 +89,16 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
     text_parts = []
     html_parts = []
 
-    # === GREETING + THANKS (both variants) ===
+    # Greeting
     text_parts.append("Hi there!")
     html_parts.append("<p>Hi there!</p>")
 
-    if variant == "treatment":
-        # Treatment: collage announcement at end of intro
-        text_parts.append("Thanks for adding your face to our petition to stop the race to build superintelligent AI. You are now in a published collage.")
-        html_parts.append("<p>Thanks for adding your face to our petition to stop the race to build superintelligent AI. You are now in a published collage.</p>")
-    else:
-        # Control: separate paragraphs
-        text_parts.append("Thanks for adding your face to our petition to stop the race to build superintelligent AI.")
-        html_parts.append("<p>Thanks for adding your face to our petition to stop the race to build superintelligent AI.</p>")
+    # Thanks + collage announcement
+    text_parts.append("Thanks for adding your face to our petition to stop the race to build superintelligent AI. You are now in a published collage.")
+    html_parts.append("<p>Thanks for adding your face to our petition to stop the race to build superintelligent AI. You are now in a published collage.</p>")
 
-    # === COLLAGE ANNOUNCEMENT (control only - with image) ===
-    if variant == "control":
-        text_parts.append(f"You are now in the collage:\n{urls['image']}")
-        html_parts.append(f'<p><strong>You are now in the collage:</strong></p>')
-        html_parts.append(f'<p><img src="{urls["image"]}" alt="Say No collage featuring your photo" class="collage-image"></p>')
-
-    # === SHARE ENCOURAGEMENT (control only, before CTAs) ===
-    if variant == "control":
-        text_parts.append("Please share this with your networks and encourage others to participate. Every new voice of concern matters!")
-        html_parts.append("<p>Please share this with your networks and encourage others to participate. <strong>Every new voice of concern matters!</strong></p>")
-
-    # === CTA BUTTONS (different styling per variant) ===
-    if variant == "treatment":
-        text_parts.append("""Please choose one of these:
+    # CTA buttons
+    text_parts.append("""Please choose one of these:
 
 ✓ Keep me informed about ways to help further:
   {subscribe}
@@ -121,36 +106,13 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
 No more contact: Just validate that I signed:
   {validate}""".format(**urls))
 
-        html_parts.append(f"""<p><strong>Please choose one of these:</strong></p>
+    html_parts.append(f"""<p><strong>Please choose one of these:</strong></p>
     <div class="cta-buttons">
         <a href="{urls['subscribe']}" class="cta-primary">✓ Keep me informed about ways to help further</a>
         <a href="{urls['validate']}" class="cta-secondary">No more contact: Just validate that I signed</a>
     </div>""")
-    else:
-        # Control: vertical layout with "or" separator
-        text_parts.append("""We would love you to:
 
-✓ Verify your email and sign up for our newsletter and more ways to help:
-  {subscribe}
-
-or
-
-Just verify your email (we won't use it to reach out again):
-  {validate}""".format(**urls))
-
-        html_parts.append(f"""<p>We would love you to:</p>
-
-    <p>
-        <a href="{urls['subscribe']}" class="cta-primary">✓ Verify your email and sign up for our newsletter and more ways to help</a>
-    </p>
-
-    <p style="text-align: center; margin: 20px 0;">or</p>
-
-    <p>
-        <a href="{urls['validate']}" class="cta-secondary">Just verify your email (we won't use it to reach out again)</a>
-    </p>""")
-
-    # === SOCIAL SHARING ===
+    # Social sharing
     share_text = """Share on social media:
 📘 Facebook: {share_facebook}
 🐦 Twitter/X: {share_twitter}
@@ -159,7 +121,7 @@ Just verify your email (we won't use it to reach out again):
 🔗 Reddit: {share_reddit}""".format(**urls)
 
     share_html = f"""<div class="social-buttons">
-        <p><strong>Share {"this with your networks" if variant == "treatment" else "on social media"}:</strong></p>
+        <p><strong>Share this with your networks:</strong></p>
         <a href="{urls['share_facebook']}" class="social-button">📘 Facebook</a>
         <a href="{urls['share_twitter']}" class="social-button">🐦 Twitter/X</a>
         <a href="{urls['share_whatsapp']}" class="social-button">💬 WhatsApp</a>
@@ -170,17 +132,15 @@ Just verify your email (we won't use it to reach out again):
     text_parts.append(share_text)
     html_parts.append(share_html)
 
-    # === EXPLANATION (treatment only) ===
-    if variant == "treatment":
-        text_parts.append("About these options: 'Keep me informed' marks you as open to updates about the collage and takes you to our newsletter signup. Validation alone is also valuable - it's a standard petition step that helps us demonstrate legitimacy.")
-        html_parts.append('<p class="explanation">About these options: "Keep me informed" marks you as open to updates about the collage and takes you to our newsletter signup. Validation alone is also valuable - it\'s a standard petition step that helps us demonstrate legitimacy.</p>')
+    # Explanation
+    text_parts.append("About these options: 'Keep me informed' marks you as open to updates about the collage and takes you to our newsletter signup. Validation alone is also valuable - it's a standard petition step that helps us demonstrate legitimacy.")
+    html_parts.append('<p class="explanation">About these options: "Keep me informed" marks you as open to updates about the collage and takes you to our newsletter signup. Validation alone is also valuable - it\'s a standard petition step that helps us demonstrate legitimacy.</p>')
 
-    # === COLLAGE IMAGE (treatment only - moved down) ===
-    if variant == "treatment":
-        text_parts.append(f"Here's the collage:\n{urls['image']}")
-        html_parts.append(f'<p><img src="{urls["image"]}" alt="Say No collage featuring your photo" class="collage-image"></p>')
+    # Collage image
+    text_parts.append(f"Here's the collage:\n{urls['image']}")
+    html_parts.append(f'<p><img src="{urls["image"]}" alt="Say No collage featuring your photo" class="collage-image"></p>')
 
-    # === IMPACT MESSAGE (both variants) ===
+    # Impact message
     text_parts.append("As the petition grows, we'll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.")
     html_parts.append('<p style="margin-top: 30px;">As the petition grows, we\'ll use it in social and physical media to push politicians to take international regulatory action, and to gain further public attention and support.</p>')
 

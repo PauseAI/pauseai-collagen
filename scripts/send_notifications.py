@@ -34,7 +34,6 @@ from typing import List, Dict, Optional
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
 from tracking import TrackingDB
 from email_template import generate_email
-from experiments import X001_CTAS_ABOVE_COLLAGE
 
 # Load environment variables
 from dotenv import load_dotenv
@@ -271,17 +270,13 @@ def send_notifications(
         # Check if this is a bootstrap user
         is_bootstrap = email.lower() in bootstrap_emails
 
-        # TEMPORARY HACK: Force treatment variant for Anthony's test
+        # TEMPORARY HACK: Email override for testing (kept for future experiments)
         if email == "mail@anthonybailey.net":
             email = "e" + email
-            logger.info(f"TEST HACK: Modified email to {email} for treatment variant")
-
-        # Determine A/B test variant
-        variant = X001_CTAS_ABOVE_COLLAGE.get_variant(email)
-        logger.debug(f"A/B variant for {email}: {variant}")
+            logger.info(f"TEST HACK: Modified email to {email}")
 
         # Generate personalized email
-        email_content = generate_email(campaign, uid, email, build_id, is_bootstrap_user=is_bootstrap, variant=variant)
+        email_content = generate_email(campaign, uid, email, build_id, is_bootstrap_user=is_bootstrap)
 
         # Show content if allowlist is being used (testing mode)
         if allowlist_emails and dry_run:
