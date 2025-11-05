@@ -184,6 +184,10 @@ def lambda_handler(event, context):
         print(f"ERROR: Failed to enqueue: {e}")
         # Continue with redirect even if enqueue fails
 
+    # Check for experiment parameters to pass through
+    query_params = event.get('queryStringParameters') or {}
+    x002_param = '&x002' if 'x002' in query_params else ''
+
     # Generate redirect URL
     if event_type == 'open':
         # Redirect to S3 image
@@ -191,12 +195,12 @@ def lambda_handler(event, context):
         redirect_url = f"https://s3.amazonaws.com/{S3_BUCKET}/{campaign}/{build_id}/1024.jpg"
 
     elif event_type == 'validate':
-        redirect_url = f"https://pauseai.info/{display_campaign}?collagen_uid_{display_campaign}={uid}"
+        redirect_url = f"https://pauseai.info/{display_campaign}?collagen_uid_{display_campaign}={uid}{x002_param}"
 
     elif event_type == 'subscribe':
-        email = (event.get('queryStringParameters') or {}).get('email', '')
+        email = query_params.get('email', '')
         # Redirect to join page with UID and email
-        redirect_url = f"https://pauseai.info/join?collagen_uid_{display_campaign}={uid}&subscribe-email={quote(email)}"
+        redirect_url = f"https://pauseai.info/join?collagen_uid_{display_campaign}={uid}&subscribe-email={quote(email)}{x002_param}"
 
     elif event_type == 'share':
         # Validate platform

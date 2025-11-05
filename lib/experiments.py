@@ -87,6 +87,7 @@ class Experiment:
 
 # Active experiments
 X001_CTAS_ABOVE_COLLAGE = Experiment("CTAs above collage")
+X002_POST_ACTION_SHARING = Experiment("Post-action sharing")
 
 
 def get_experiment(identifier):
