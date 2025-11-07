@@ -70,10 +70,7 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
     Generate complete email (subject, plain text, HTML) for a user.
 
     Uses streamlined layout (X001 experiment winner): CTAs first, collage at end, simpler language.
-
-    X002 experiment (Post-action sharing):
-    - Control: Adds &x002 parameter to subscribe/validate URLs (hides sharing on website)
-    - Treatment: Enhanced sharing CTA text
+    Uses enhanced sharing CTA (X002 experiment winner): "Tell your friends!" language.
 
     Args:
         campaign: Campaign name
@@ -86,18 +83,11 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
     Returns:
         Dict with keys: subject, plain, html
     """
-    from experiments import X002_POST_ACTION_SHARING
-
     if subject is None:
         subject = "You're now in the Say No collage! 📸"
 
     urls = generate_tracking_urls(campaign, uid, email, build_id)
 
-    # X002: Control variant adds &x002 to subscribe/validate URLs
-    x002_variant = X002_POST_ACTION_SHARING.get_variant(email)
-    if x002_variant == "control":
-        urls['subscribe'] += "&x002"
-        urls['validate'] += "?x002"
     text_parts = []
     html_parts = []
 
@@ -124,15 +114,8 @@ No more contact: Just validate that I signed:
         <a href="{urls['validate']}" class="cta-secondary">No more contact: Just validate that I signed</a>
     </div>""")
 
-    # Social sharing (X002: Treatment gets enhanced CTA)
-    if x002_variant == "treatment":
-        share_intro_text = "Tell your friends! Multiply your impact by inviting your network to sign too."
-        share_intro_html = "<p><strong>Tell your friends!</strong> Multiply your impact by inviting your network to sign too.</p>"
-    else:
-        share_intro_text = "Share on social media:"
-        share_intro_html = "<p><strong>Share this with your networks:</strong></p>"
-
-    share_text = f"""{share_intro_text}
+    # Social sharing
+    share_text = f"""Tell your friends! Multiply your impact by inviting your network to sign too.
 📘 Facebook: {{share_facebook}}
 🐦 Twitter/X: {{share_twitter}}
 💬 WhatsApp: {{share_whatsapp}}
@@ -140,7 +123,7 @@ No more contact: Just validate that I signed:
 🔗 Reddit: {{share_reddit}}""".format(**urls)
 
     share_html = f"""<div class="social-buttons">
-        {share_intro_html}
+        <p><strong>Tell your friends!</strong> Multiply your impact by inviting your network to sign too.</p>
         <a href="{urls['share_facebook']}" class="social-button">📘 Facebook</a>
         <a href="{urls['share_twitter']}" class="social-button">🐦 Twitter/X</a>
         <a href="{urls['share_whatsapp']}" class="social-button">💬 WhatsApp</a>

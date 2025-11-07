@@ -10,7 +10,7 @@ from pathlib import Path
 
 # Add lib/ to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
-from tracking import TrackingDB
+from tracking import TrackingDB, BOT_SECS
 
 
 def report_experiment_breakdown(conn, experiment, sample_file):
@@ -196,12 +196,34 @@ def main():
     print(f"Total users:  {stats['total_users']}")
     print(f"Emailed:      {stats['emailed']}")
     print(f"Opened:       {stats['opened']}")
-    print(f"Validated:    {stats['validated']}")
-    print(f"Subscribed:   {stats['subscribed']}")
 
     # Connect to database for additional queries
     import sqlite3
     conn = sqlite3.connect(db.db_path)
+
+    # Bot-only opens breakdown
+    if stats['opened'] > 0:
+        cursor = conn.execute(f'''
+            SELECT COUNT(*)
+            FROM users
+            WHERE opened_at IS NOT NULL
+            AND (julianday(opened_at) - julianday(emailed_at)) * 86400 <= {BOT_SECS}
+        ''')
+        bot_only_opens = cursor.fetchone()[0]
+        human_opens = stats['opened'] - bot_only_opens
+
+        print(f"  - Bot-only: {bot_only_opens} ({100*bot_only_opens/stats['opened']:.1f}% of opens, likely never viewed by human)")
+        print(f"  - Human:    {human_opens} ({100*human_opens/stats['opened']:.1f}% of opens, {100*human_opens/stats['emailed']:.1f}% of emailed)")
+    else:
+        human_opens = 0
+
+    # Validated/Subscribed with percentages relative to human opens
+    if human_opens > 0:
+        print(f"Validated:    {stats['validated']} ({100*stats['validated']/stats['emailed']:.1f}% of emailed, {100*stats['validated']/human_opens:.1f}% of human opens)")
+        print(f"Subscribed:   {stats['subscribed']} ({100*stats['subscribed']/stats['emailed']:.1f}% of emailed, {100*stats['subscribed']/human_opens:.1f}% of human opens)")
+    else:
+        print(f"Validated:    {stats['validated']}")
+        print(f"Subscribed:   {stats['subscribed']}")
 
     # A/B test breakdown (only if --experiment specified)
     if args.experiment:

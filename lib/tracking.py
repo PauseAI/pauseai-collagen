@@ -15,6 +15,9 @@ from typing import Optional
 # Base58 alphabet (excludes ambiguous characters: 0O1Il)
 BASE58 = '23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz'
 
+# Bot detection: Opens within this many seconds of email send are likely automated scanners
+BOT_SECS = 10
+
 
 def generate_uid() -> str:
     """Generate a random 8-character base58 UID."""
@@ -139,6 +142,10 @@ class TrackingDB:
         """
         Mark user as opened (tracking pixel loaded).
 
+        Updates opened_at if:
+        - No open recorded yet (opened_at IS NULL), OR
+        - Existing open was within BOT_SECS of email send (likely bot, replace with human open)
+
         Args:
             uid: User UID
             event_time: When event occurred (defaults to now). Use SQS message timestamp for accuracy.
@@ -154,9 +161,12 @@ class TrackingDB:
                 """
                 UPDATE users
                 SET opened_at = ?, updated_at = ?
-                WHERE uid = ? AND opened_at IS NULL
+                WHERE uid = ? AND (
+                    opened_at IS NULL
+                    OR (julianday(opened_at) - julianday(emailed_at)) * 86400 <= ?
+                )
                 """,
-                (event_ts, updated_ts, uid)
+                (event_ts, updated_ts, uid, BOT_SECS)
             )
             return cursor.rowcount > 0
 
