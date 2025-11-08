@@ -396,38 +396,65 @@ else
         --output text 2>/dev/null || echo "")
 
     if [ -z "$PLAN_ID" ]; then
-        # Create backup plan (daily at 5 AM UTC, retain 7 days)
+        # Create backup plan with GFS (Grandfather-Father-Son) retention strategy
+        # - Daily: 14 days (Son)
+        # - Weekly: 60 days (Father)
+        # - Monthly: 365 days (Grandfather)
         PLAN_ID=$(aws backup create-backup-plan \
             --region "$REGION" \
             --backup-plan "{
                 \"BackupPlanName\": \"$BACKUP_PLAN_NAME\",
-                \"Rules\": [{
-                    \"RuleName\": \"daily-backup\",
-                    \"TargetBackupVaultName\": \"$VAULT_NAME\",
-                    \"ScheduleExpression\": \"cron(0 5 * * ? *)\",
-                    \"StartWindowMinutes\": 60,
-                    \"CompletionWindowMinutes\": 120,
-                    \"Lifecycle\": {
-                        \"DeleteAfterDays\": 7
+                \"Rules\": [
+                    {
+                        \"RuleName\": \"daily-backup\",
+                        \"TargetBackupVaultName\": \"$VAULT_NAME\",
+                        \"ScheduleExpression\": \"cron(0 5 * * ? *)\",
+                        \"StartWindowMinutes\": 60,
+                        \"CompletionWindowMinutes\": 120,
+                        \"Lifecycle\": {
+                            \"DeleteAfterDays\": 14
+                        }
+                    },
+                    {
+                        \"RuleName\": \"weekly-backup\",
+                        \"TargetBackupVaultName\": \"$VAULT_NAME\",
+                        \"ScheduleExpression\": \"cron(0 5 ? * SUN *)\",
+                        \"StartWindowMinutes\": 60,
+                        \"CompletionWindowMinutes\": 120,
+                        \"Lifecycle\": {
+                            \"DeleteAfterDays\": 60
+                        }
+                    },
+                    {
+                        \"RuleName\": \"monthly-backup\",
+                        \"TargetBackupVaultName\": \"$VAULT_NAME\",
+                        \"ScheduleExpression\": \"cron(0 5 1 * ? *)\",
+                        \"StartWindowMinutes\": 60,
+                        \"CompletionWindowMinutes\": 120,
+                        \"Lifecycle\": {
+                            \"DeleteAfterDays\": 365
+                        }
                     }
-                }]
+                ]
             }" \
             --query 'BackupPlanId' \
             --output text)
 
-        echo "Created backup plan: $PLAN_ID"
+        echo "Created backup plan with GFS retention: $PLAN_ID"
+        echo "  - Daily: 14 days"
+        echo "  - Weekly (Sunday): 60 days"
+        echo "  - Monthly (1st): 365 days"
     else
         echo "Backup plan already exists: $PLAN_ID"
     fi
 
-    # Create IAM role for AWS Backup if it doesn't exist
-    BACKUP_ROLE_NAME="AWSBackupDefaultServiceRole"
-    if ! aws iam get-role --role-name "$BACKUP_ROLE_NAME" 2>/dev/null; then
-        aws iam create-service-linked-role --aws-service-name backup.amazonaws.com 2>/dev/null || true
-        echo "Created AWS Backup service role"
-    fi
+    # Create AWS Backup service-linked role if it doesn't exist
+    # Note: Service-linked role name is AWSServiceRoleForBackup (managed by AWS)
+    aws iam create-service-linked-role --aws-service-name backup.amazonaws.com 2>/dev/null || echo "AWS Backup service-linked role already exists"
 
-    BACKUP_ROLE_ARN="arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/service-role/$BACKUP_ROLE_NAME"
+    BACKUP_ROLE_ARN="arn:aws:iam::$(aws sts get-caller-identity --query Account --output text):role/aws-service-role/backup.amazonaws.com/AWSServiceRoleForBackup"
+
+    echo "Using AWS Backup service-linked role: AWSServiceRoleForBackup"
 
     # Create backup selection (target: our EC2 instance)
     aws backup create-backup-selection \
@@ -439,9 +466,28 @@ else
             \"Resources\": [
                 \"arn:aws:ec2:$REGION:$(aws sts get-caller-identity --query Account --output text):instance/$INSTANCE_ID\"
             ]
-        }" 2>/dev/null || echo "Backup selection already exists"
+        }" 2>/dev/null || echo "Backup selection already exists (EC2)"
 
     echo "AWS Backup configured for EC2 instance: $INSTANCE_ID"
+
+    # Create backup selection for EFS filesystem
+    if [ -n "$EFS_ID" ]; then
+        aws backup create-backup-selection \
+            --region "$REGION" \
+            --backup-plan-id "$PLAN_ID" \
+            --backup-selection "{
+                \"SelectionName\": \"collagen-efs-selection\",
+                \"IamRoleArn\": \"$BACKUP_ROLE_ARN\",
+                \"Resources\": [
+                    \"arn:aws:elasticfilesystem:$REGION:$(aws sts get-caller-identity --query Account --output text):file-system/$EFS_ID\"
+                ]
+            }" 2>/dev/null || echo "Backup selection already exists (EFS)"
+
+        echo "AWS Backup configured for EFS filesystem: $EFS_ID"
+    else
+        echo "WARNING: EFS_ID not found in .aws-config - skipping EFS backup setup"
+    fi
+
     echo "Daily backups at 5 AM UTC, retained for 7 days"
 fi
 
