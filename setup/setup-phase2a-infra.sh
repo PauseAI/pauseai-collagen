@@ -456,40 +456,41 @@ else
 
     echo "Using AWS Backup service-linked role: AWSServiceRoleForBackup"
 
-    # Tag resources for backup (tag-based selection is AWS recommended approach)
-    if [ -n "$INSTANCE_ID" ]; then
-        aws ec2 create-tags \
-            --resources "$INSTANCE_ID" \
-            --tags Key=backup,Value=daily \
-            --region "$REGION" 2>/dev/null || echo "EC2 instance already tagged for backup"
-    fi
-
+    # Enable EFS automatic backups (required for AWS Backup to work)
+    # Note: EC2 backup is not configured due to AWS managed policy bug (missing ec2:DescribeTags)
     if [ -n "$EFS_ID" ]; then
-        aws efs tag-resource \
-            --resource-id "$EFS_ID" \
-            --tags Key=backup,Value=daily \
-            --region "$REGION" 2>/dev/null || echo "EFS filesystem already tagged for backup"
+        # Enable automatic backups - AWS will add the required tag automatically
+        aws efs put-backup-policy \
+            --file-system-id "$EFS_ID" \
+            --backup-policy Status=ENABLED \
+            --region "$REGION" 2>/dev/null || echo "EFS automatic backups already enabled"
+
+        echo "Enabled EFS automatic backups (adds aws:elasticfilesystem:default-backup tag)"
+        sleep 5
+    else
+        echo "WARNING: EFS_ID not found in .aws-config - skipping EFS backup setup"
+        echo "Daily backups at 5 AM UTC will fail without EFS_ID"
+        return
     fi
 
-    # Create tag-based backup selection (covers all resources with backup=daily tag)
+    # Create backup selection for EFS only (using direct resource ARN)
     aws backup create-backup-selection \
         --region "$REGION" \
         --backup-plan-id "$PLAN_ID" \
         --backup-selection "{
-            \"SelectionName\": \"collagen-tagged-resources\",
+            \"SelectionName\": \"collagen-efs-backup\",
             \"IamRoleArn\": \"$BACKUP_ROLE_ARN\",
-            \"ListOfTags\": [{
-                \"ConditionType\": \"STRINGEQUALS\",
-                \"ConditionKey\": \"backup\",
-                \"ConditionValue\": \"daily\"
-            }]
+            \"Resources\": [
+                \"arn:aws:elasticfilesystem:$REGION:$(aws sts get-caller-identity --query Account --output text):file-system/$EFS_ID\"
+            ]
         }" 2>/dev/null || echo "Backup selection already exists"
 
-    echo "AWS Backup configured for tagged resources (backup=daily)"
-    echo "  - EC2: $INSTANCE_ID"
-    echo "  - EFS: $EFS_ID"
+    echo "AWS Backup configured for EFS filesystem: $EFS_ID"
     echo "GFS retention: Daily (14d), Weekly (60d), Monthly (365d)"
     echo "Next scheduled backup: 5 AM UTC"
+    echo ""
+    echo "NOTE: EC2 backup not configured due to AWS managed policy bug"
+    echo "      (AWSBackupServiceLinkedRolePolicyForBackup v20 missing ec2:DescribeTags)"
 fi
 
 # Create IAM role for EC2 to access SQS
