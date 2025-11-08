@@ -456,39 +456,40 @@ else
 
     echo "Using AWS Backup service-linked role: AWSServiceRoleForBackup"
 
-    # Create backup selection (target: our EC2 instance)
+    # Tag resources for backup (tag-based selection is AWS recommended approach)
+    if [ -n "$INSTANCE_ID" ]; then
+        aws ec2 create-tags \
+            --resources "$INSTANCE_ID" \
+            --tags Key=backup,Value=daily \
+            --region "$REGION" 2>/dev/null || echo "EC2 instance already tagged for backup"
+    fi
+
+    if [ -n "$EFS_ID" ]; then
+        aws efs tag-resource \
+            --resource-id "$EFS_ID" \
+            --tags Key=backup,Value=daily \
+            --region "$REGION" 2>/dev/null || echo "EFS filesystem already tagged for backup"
+    fi
+
+    # Create tag-based backup selection (covers all resources with backup=daily tag)
     aws backup create-backup-selection \
         --region "$REGION" \
         --backup-plan-id "$PLAN_ID" \
         --backup-selection "{
-            \"SelectionName\": \"collagen-ec2-selection\",
+            \"SelectionName\": \"collagen-tagged-resources\",
             \"IamRoleArn\": \"$BACKUP_ROLE_ARN\",
-            \"Resources\": [
-                \"arn:aws:ec2:$REGION:$(aws sts get-caller-identity --query Account --output text):instance/$INSTANCE_ID\"
-            ]
-        }" 2>/dev/null || echo "Backup selection already exists (EC2)"
+            \"ListOfTags\": [{
+                \"ConditionType\": \"STRINGEQUALS\",
+                \"ConditionKey\": \"backup\",
+                \"ConditionValue\": \"daily\"
+            }]
+        }" 2>/dev/null || echo "Backup selection already exists"
 
-    echo "AWS Backup configured for EC2 instance: $INSTANCE_ID"
-
-    # Create backup selection for EFS filesystem
-    if [ -n "$EFS_ID" ]; then
-        aws backup create-backup-selection \
-            --region "$REGION" \
-            --backup-plan-id "$PLAN_ID" \
-            --backup-selection "{
-                \"SelectionName\": \"collagen-efs-selection\",
-                \"IamRoleArn\": \"$BACKUP_ROLE_ARN\",
-                \"Resources\": [
-                    \"arn:aws:elasticfilesystem:$REGION:$(aws sts get-caller-identity --query Account --output text):file-system/$EFS_ID\"
-                ]
-            }" 2>/dev/null || echo "Backup selection already exists (EFS)"
-
-        echo "AWS Backup configured for EFS filesystem: $EFS_ID"
-    else
-        echo "WARNING: EFS_ID not found in .aws-config - skipping EFS backup setup"
-    fi
-
-    echo "Daily backups at 5 AM UTC, retained for 7 days"
+    echo "AWS Backup configured for tagged resources (backup=daily)"
+    echo "  - EC2: $INSTANCE_ID"
+    echo "  - EFS: $EFS_ID"
+    echo "GFS retention: Daily (14d), Weekly (60d), Monthly (365d)"
+    echo "Next scheduled backup: 5 AM UTC"
 fi
 
 # Create IAM role for EC2 to access SQS
