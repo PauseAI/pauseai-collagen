@@ -65,7 +65,7 @@ def generate_tracking_urls(campaign: str, uid: str, email: str, build_id: str) -
     return urls
 
 
-def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None, is_bootstrap_user: bool = False) -> Dict[str, str]:
+def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: Optional[str] = None) -> Dict[str, str]:
     """
     Generate complete email (subject, plain text, HTML) for a user.
 
@@ -78,7 +78,6 @@ def generate_email(campaign: str, uid: str, email: str, build_id: str, subject: 
         email: User's email address
         build_id: Collage build ID
         subject: Optional custom subject line
-        is_bootstrap_user: If True, add note about previous bootstrap email
 
     Returns:
         Dict with keys: subject, plain, html
@@ -155,9 +154,6 @@ No more contact: Just validate that I signed:
 
     # Footer
     footer_text = "This is the single automated notification we promised when you submitted your photo."
-    if is_bootstrap_user:
-        footer_text += " (You signed early enough you already got a placeholder email from me too: thanks again, --Anthony.)"
-
     text_parts.append("---\n" + footer_text)
     html_parts.append(f'<div class="footer">\n        <p>{footer_text}</p>\n    </div>')
 

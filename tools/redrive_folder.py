@@ -26,7 +26,7 @@ cloudinary.config(
 )
 
 
-def redrive_folder(asset_folder: str, delay: float = 0.5, limit: int = None):
+def redrive_folder(asset_folder: str, delay: float = 0.5, limit: int = None, since: str = None):
     """
     Redrive all images in an asset_folder by toggling moderation status.
 
@@ -34,13 +34,21 @@ def redrive_folder(asset_folder: str, delay: float = 0.5, limit: int = None):
         asset_folder: Folder name (e.g., 'test_prototype', 'sayno')
         delay: Seconds to wait between API calls (rate limiting)
         limit: Max number of images to process (None = all)
+        since: Only redrive images uploaded after this date (YYYY-MM-DD)
     """
     print(f"Redriving asset_folder: {asset_folder}")
+    if since:
+        print(f"Filtering to images uploaded since: {since}")
     print("=" * 80)
 
-    # Get all images in folder
+    # Build search expression
+    expr = f'asset_folder={asset_folder}'
+    if since:
+        expr += f' AND uploaded_at>{since}'
+
+    # Get images matching criteria
     search_result = cloudinary.Search() \
-        .expression(f'asset_folder={asset_folder}') \
+        .expression(expr) \
         .max_results(500) \
         .execute()
 
@@ -98,6 +106,7 @@ if __name__ == '__main__':
     parser.add_argument('asset_folder', help='Folder name (e.g., test_prototype, sayno)')
     parser.add_argument('--limit', type=int, help='Process only first N images (for testing)')
     parser.add_argument('--delay', type=float, default=0.5, help='Delay between API calls (default: 0.5s)')
+    parser.add_argument('--since', type=str, help='Only redrive images uploaded after this date (YYYY-MM-DD)')
 
     args = parser.parse_args()
-    redrive_folder(args.asset_folder, delay=args.delay, limit=args.limit)
+    redrive_folder(args.asset_folder, delay=args.delay, limit=args.limit, since=args.since)

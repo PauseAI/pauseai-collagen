@@ -1,91 +1,55 @@
 #!/bin/bash
 # Redirect systemd service logs to EFS for backup coverage
 # This preserves important operational logs (user actions, processing events)
+#
+# IMPORTANT: This script copies service files from setup/ directory.
+# If you need to modify service configuration, edit the files in setup/ first,
+# then re-run this script to deploy them.
 
 set -e
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+KEY="$HOME/.ssh/collagen-server-key.pem"
+EC2_HOST="ubuntu@3.85.173.169"
+
+# Verify service files exist locally
+if [[ ! -f "$SCRIPT_DIR/collagen-ingestor.service" ]] || [[ ! -f "$SCRIPT_DIR/collagen-tracking-worker.service" ]]; then
+    echo "ERROR: Service files not found in $SCRIPT_DIR"
+    echo "Expected: collagen-ingestor.service, collagen-tracking-worker.service"
+    exit 1
+fi
+
 echo "=== Redirecting Collagen Service Logs to EFS ==="
 echo ""
+echo "Using service files from: $SCRIPT_DIR"
+echo ""
 
-# Create log directories on EFS if they don't exist
-ssh -i ~/.ssh/collagen-server-key.pem ubuntu@3.85.173.169 << 'EOF'
+# Copy service files to EC2
+echo "Copying service files to EC2..."
+scp -i "$KEY" \
+    "$SCRIPT_DIR/collagen-ingestor.service" \
+    "$SCRIPT_DIR/collagen-tracking-worker.service" \
+    "$EC2_HOST":~/collagen/setup/
+
+# Run setup on EC2
+ssh -i "$KEY" "$EC2_HOST" << 'EOF'
     # Create centralized log directory for systemd services
     sudo mkdir -p /mnt/efs/system-logs
     sudo chown ubuntu:ubuntu /mnt/efs/system-logs
 
     # Export existing journald logs first (preserve history)
     echo "Exporting existing journald logs to EFS..."
-    sudo journalctl -u collagen-ingestor > /mnt/efs/system-logs/collagen-ingestor-journal-export.log
-    sudo journalctl -u collagen-tracking-worker > /mnt/efs/system-logs/collagen-tracking-worker-journal-export.log
+    sudo journalctl -u collagen-ingestor > /mnt/efs/system-logs/collagen-ingestor-journal-export.log 2>/dev/null || true
+    sudo journalctl -u collagen-tracking-worker > /mnt/efs/system-logs/collagen-tracking-worker-journal-export.log 2>/dev/null || true
 
-    echo "Exported $(wc -l < /mnt/efs/system-logs/collagen-ingestor-journal-export.log) lines from ingestor"
-    echo "Exported $(wc -l < /mnt/efs/system-logs/collagen-tracking-worker-journal-export.log) lines from tracking worker"
+    echo "Exported $(wc -l < /mnt/efs/system-logs/collagen-ingestor-journal-export.log 2>/dev/null || echo 0) lines from ingestor"
+    echo "Exported $(wc -l < /mnt/efs/system-logs/collagen-tracking-worker-journal-export.log 2>/dev/null || echo 0) lines from tracking worker"
 
-    # Update service files to log to EFS
+    # Install service files from setup/ (single source of truth)
     echo ""
-    echo "Updating collagen-ingestor.service..."
-    sudo tee /etc/systemd/system/collagen-ingestor.service > /dev/null << 'SERVICE'
-[Unit]
-Description=Collagen SQS Webhook Ingestor
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-Group=ubuntu
-WorkingDirectory=/home/ubuntu/collagen
-Environment="PATH=/home/ubuntu/collagen/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-Environment="PYTHONUNBUFFERED=1"
-EnvironmentFile=/home/ubuntu/collagen/.env
-
-# SQS Queue URL will be loaded from .env as SQS_QUEUE_URL
-ExecStart=/home/ubuntu/collagen/venv/bin/python3 /home/ubuntu/collagen/scripts/sqs_ingestor.py
-
-# Restart policy
-Restart=always
-RestartSec=10
-
-# Logging - redirect to EFS for backup coverage
-StandardOutput=append:/mnt/efs/system-logs/collagen-ingestor.log
-StandardError=append:/mnt/efs/system-logs/collagen-ingestor.log
-
-# Also keep in journal for real-time monitoring
-SyslogIdentifier=collagen-ingestor
-
-# Security
-NoNewPrivileges=true
-PrivateTmp=true
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
-
-    echo "Updating collagen-tracking-worker.service..."
-    sudo tee /etc/systemd/system/collagen-tracking-worker.service > /dev/null << 'SERVICE'
-[Unit]
-Description=Collagen Tracking Worker
-After=network.target
-
-[Service]
-Type=simple
-User=ubuntu
-WorkingDirectory=/home/ubuntu/collagen
-Environment="COLLAGEN_DATA_DIR=/mnt/efs"
-Environment="PYTHONUNBUFFERED=1"
-ExecStart=/home/ubuntu/collagen/venv/bin/python3 /home/ubuntu/collagen/scripts/tracking_worker.py
-Restart=always
-RestartSec=10
-
-# Logging - redirect to EFS for backup coverage
-StandardOutput=append:/mnt/efs/system-logs/collagen-tracking-worker.log
-StandardError=append:/mnt/efs/system-logs/collagen-tracking-worker.log
-
-# Also keep in journal for real-time monitoring
-SyslogIdentifier=collagen-tracking-worker
-
-[Install]
-WantedBy=multi-user.target
-SERVICE
+    echo "Installing service files..."
+    sudo cp ~/collagen/setup/collagen-ingestor.service /etc/systemd/system/
+    sudo cp ~/collagen/setup/collagen-tracking-worker.service /etc/systemd/system/
 
     # Reload systemd and restart services
     echo ""

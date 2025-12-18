@@ -213,10 +213,10 @@ def main():
     )
 
     # Get queue URL from args or environment
-    queue_url = args.queue_url or os.getenv('SQS_QUEUE_URL')
+    queue_url = args.queue_url or os.getenv('SQS_WEBHOOK_QUEUE_URL')
 
     if not queue_url:
-        logging.error("SQS_QUEUE_URL not provided via --queue-url or environment variable")
+        logging.error("SQS_WEBHOOK_QUEUE_URL not provided via --queue-url or environment variable")
         sys.exit(1)
 
     # Set up signal handlers for graceful shutdown

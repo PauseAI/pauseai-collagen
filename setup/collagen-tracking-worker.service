@@ -11,8 +11,10 @@ Environment="PYTHONUNBUFFERED=1"
 ExecStart=/home/ubuntu/collagen/venv/bin/python3 /home/ubuntu/collagen/scripts/tracking_worker.py
 Restart=always
 RestartSec=10
-StandardOutput=journal
-StandardError=journal
+# Logging - redirect to EFS for backup coverage
+StandardOutput=append:/mnt/efs/system-logs/collagen-tracking-worker.log
+StandardError=append:/mnt/efs/system-logs/collagen-tracking-worker.log
+SyslogIdentifier=collagen-tracking-worker
 
 [Install]
 WantedBy=multi-user.target

@@ -215,7 +215,7 @@ if [ -f lambda/webhook_validator.py ]; then
         # Update environment variables
         aws lambda update-function-configuration \
             --function-name "$FUNCTION_NAME" \
-            --environment "Variables={SQS_QUEUE_URL=$QUEUE_URL,CLOUDINARY_API_SECRET=$CLOUDINARY_SECRET}" \
+            --environment "Variables={SQS_WEBHOOK_QUEUE_URL=$QUEUE_URL,CLOUDINARY_API_SECRET=$CLOUDINARY_SECRET}" \
             --region "$REGION" >/dev/null
 
         echo "Waiting for Lambda configuration update to complete..."
@@ -232,7 +232,7 @@ if [ -f lambda/webhook_validator.py ]; then
             --zip-file fileb://lambda/webhook_validator.zip \
             --timeout 10 \
             --memory-size 128 \
-            --environment "Variables={SQS_QUEUE_URL=$QUEUE_URL,CLOUDINARY_API_SECRET=$CLOUDINARY_SECRET}" \
+            --environment "Variables={SQS_WEBHOOK_QUEUE_URL=$QUEUE_URL,CLOUDINARY_API_SECRET=$CLOUDINARY_SECRET}" \
             --region "$REGION" >/dev/null
 
         echo "Waiting for function to be active..."
@@ -613,7 +613,7 @@ sed -i '/^# REST API Gateway v1/,/^WEBHOOK_URL=/d' .aws-config 2>/dev/null || tr
 cat >> .aws-config << EOF
 
 # Phase 2A Resources (REST API v1 with VTL support)
-SQS_QUEUE_URL=$QUEUE_URL
+SQS_WEBHOOK_QUEUE_URL=$QUEUE_URL
 SQS_DLQ_URL=$DLQ_URL
 API_GATEWAY_ID=$API_ID
 API_ENDPOINT=$API_ENDPOINT

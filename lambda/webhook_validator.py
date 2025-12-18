@@ -16,7 +16,7 @@ import boto3
 from base64 import b64decode
 
 sqs = boto3.client('sqs')
-QUEUE_URL = os.environ['SQS_QUEUE_URL']
+QUEUE_URL = os.environ['SQS_WEBHOOK_QUEUE_URL']
 CLOUDINARY_API_SECRET = os.environ['CLOUDINARY_API_SECRET']
 
 def validate_signature(body_bytes: bytes, signature: str, timestamp: str) -> bool:

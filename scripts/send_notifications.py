@@ -48,9 +48,6 @@ SMTP_USER = os.getenv("SAYNO_SMTP_USER")
 SMTP_PASSWORD = os.getenv("SAYNO_SMTP_PASSWORD")
 RATE_LIMIT_SECONDS = 2  # Delay between sends (from bootstrap #500 success)
 
-# Bootstrap emails file (one-time use, will delete after production send)
-BOOTSTRAP_EMAILS_FILE = Path(__file__).parent / "bootstrap_emails.txt"
-
 # Allowlist file (optional - if present, only send to these emails)
 ALLOWLIST_EMAILS_FILE = Path(__file__).parent / "allowlist_emails.txt"
 
@@ -159,15 +156,6 @@ def send_email(recipient: str, email_content: Dict[str, str], dry_run: bool = Fa
         return False
 
 
-def load_bootstrap_emails() -> set:
-    """Load bootstrap email list (users who got manual notification)."""
-    if not BOOTSTRAP_EMAILS_FILE.exists():
-        return set()
-
-    with open(BOOTSTRAP_EMAILS_FILE) as f:
-        return {line.strip().lower() for line in f if line.strip()}
-
-
 def load_allowlist_emails() -> Optional[set]:
     """
     Load allowlist email addresses (optional).
@@ -200,11 +188,6 @@ def send_notifications(
     logger.info(f"Mode: {'DRY-RUN' if dry_run else 'LIVE SEND'}")
     if single_uid:
         logger.info(f"Single UID mode: {single_uid}")
-
-    # Load bootstrap emails list
-    bootstrap_emails = load_bootstrap_emails()
-    if bootstrap_emails:
-        logger.info(f"Loaded {len(bootstrap_emails)} bootstrap email addresses")
 
     # Load allowlist (optional - restricts who gets emails)
     allowlist_emails = load_allowlist_emails()
@@ -267,16 +250,13 @@ def send_notifications(
 
         logger.info(f"[{i}/{len(contributors)}] Processing {email} (uid={uid})")
 
-        # Check if this is a bootstrap user
-        is_bootstrap = email.lower() in bootstrap_emails
-
         # TEMPORARY HACK: Email override for testing (kept for future experiments)
         if email == "mail@anthonybailey.net":
             email = "e" + email
             logger.info(f"TEST HACK: Modified email to {email}")
 
         # Generate personalized email
-        email_content = generate_email(campaign, uid, email, build_id, is_bootstrap_user=is_bootstrap)
+        email_content = generate_email(campaign, uid, email, build_id)
 
         # Show content if allowlist is being used (testing mode)
         if allowlist_emails and dry_run:

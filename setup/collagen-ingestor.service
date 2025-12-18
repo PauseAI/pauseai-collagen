@@ -11,16 +11,16 @@ Environment="PATH=/home/ubuntu/collagen/venv/bin:/usr/local/sbin:/usr/local/bin:
 Environment="PYTHONUNBUFFERED=1"
 EnvironmentFile=/home/ubuntu/collagen/.env
 
-# SQS Queue URL will be loaded from .env as SQS_QUEUE_URL
+# SQS Queue URL will be loaded from .env as SQS_WEBHOOK_QUEUE_URL
 ExecStart=/home/ubuntu/collagen/venv/bin/python3 /home/ubuntu/collagen/scripts/sqs_ingestor.py
 
 # Restart policy
 Restart=always
 RestartSec=10
 
-# Logging
-StandardOutput=journal
-StandardError=journal
+# Logging - redirect to EFS for backup coverage
+StandardOutput=append:/mnt/efs/system-logs/collagen-ingestor.log
+StandardError=append:/mnt/efs/system-logs/collagen-ingestor.log
 SyslogIdentifier=collagen-ingestor
 
 # Security

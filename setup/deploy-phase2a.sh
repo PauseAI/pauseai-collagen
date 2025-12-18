@@ -14,7 +14,7 @@ source .aws-config
 
 echo "=== Deploying Phase 2A SQS Processor to EC2 ==="
 echo "Instance: $INSTANCE_ID ($PUBLIC_IP)"
-echo "Queue: $SQS_QUEUE_URL"
+echo "Queue: $SQS_WEBHOOK_QUEUE_URL"
 echo ""
 
 # Check SSH connectivity
@@ -65,16 +65,16 @@ ssh -i ~/.ssh/${KEY_NAME}.pem ubuntu@${PUBLIC_IP} << 'ENDSSH'
     echo "Python dependencies installed"
 ENDSSH
 
-# Update .env with SQS_QUEUE_URL
-echo "[5/6] Updating .env with SQS_QUEUE_URL..."
+# Update .env with SQS_WEBHOOK_QUEUE_URL
+echo "[5/6] Updating .env with SQS_WEBHOOK_QUEUE_URL..."
 ssh -i ~/.ssh/${KEY_NAME}.pem ubuntu@${PUBLIC_IP} << ENDSSH
-    if ! grep -q "SQS_QUEUE_URL" ~/collagen/.env 2>/dev/null; then
+    if ! grep -q "SQS_WEBHOOK_QUEUE_URL" ~/collagen/.env 2>/dev/null; then
         echo "" >> ~/collagen/.env
         echo "# AWS SQS Queue (Phase 2A)" >> ~/collagen/.env
-        echo "SQS_QUEUE_URL=$SQS_QUEUE_URL" >> ~/collagen/.env
-        echo "Added SQS_QUEUE_URL to .env"
+        echo "SQS_WEBHOOK_QUEUE_URL=$SQS_WEBHOOK_QUEUE_URL" >> ~/collagen/.env
+        echo "Added SQS_WEBHOOK_QUEUE_URL to .env"
     else
-        echo "SQS_QUEUE_URL already in .env"
+        echo "SQS_WEBHOOK_QUEUE_URL already in .env"
     fi
 ENDSSH
 
